@@ -9,7 +9,6 @@ description = "A pip-audit like tool for auditing Python packages in requirement
 authors = [
     {name = "SpielerNogard", email = "christophermueller2@outlook.de"}
 ]
-license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.13"
 
@@ -18,4 +17,4 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+exclude = ["*.tests", "*.tests.*", "tests.*", "tests"]
