@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "git+https://github.com/SpielerNogard/uv-audit.git@main"
+#     "uv-audit @ git+https://github.com/SpielerNogard/uv-audit.git@main"
 # ]
 # ///
 
