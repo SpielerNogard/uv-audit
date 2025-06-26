@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "aiohttp",
+# ]
+# ///
+
 from uv_audit.environment_handler import EnvironmentHandler
 from uv_audit.vulnerability_scanner import VulnerabilityScanner
 import argparse
@@ -40,4 +47,5 @@ if __name__ == "__main__":
                 vulns.append({"package": result["package"], "version": result["version"], "vulnerability": vuln["id"], "fixed_in": vuln.get("fixed_in", "N/A"), "link": vuln.get("link", "N/A")})
 
         print_simple_table(vulns)
+
 
