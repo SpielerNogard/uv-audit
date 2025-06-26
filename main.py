@@ -10,6 +10,7 @@ from uv_audit.vulnerability_scanner import VulnerabilityScanner
 import argparse
 from uv_audit.table_view import print_simple_table
 from pathlib import Path
+import sys
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -47,12 +48,18 @@ if __name__ == "__main__":
             for vuln in result["vulnerabilities"]:
                 vulns.append(
                     {
-                        "package": result["package"],
-                        "version": result["version"],
-                        "vulnerability": vuln["id"],
-                        "fixed_in": vuln.get("fixed_in", "N/A"),
-                        "link": vuln.get("link", "N/A"),
+                        "Name": result["package"],
+                        "Version": result["version"],
+                        "ID": vuln["id"],
+                        "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
+                        "Link": vuln.get("link", "N/A"),
                     }
                 )
-
-        print_simple_table(vulns)
+        print(f"Auditing {file_path} for known vulnerabilities...")
+        if vulns:
+            print(
+                f"Found {len(vulns)} known vulnerabilities in {len(set([vuln['Name'] for vuln in vulns]))} packages"
+            )
+            print_simple_table(vulns)
+            sys.exit(0)
+        print("No known vulnerabilities found")
