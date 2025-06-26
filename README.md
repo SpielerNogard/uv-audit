@@ -124,6 +124,7 @@ werkzeug==3.1.3
 
 scanned once with `pip-audit`
 ![pip-audit](./docs/images/pip-audit.png)
+
 and once with `uv-audit`
 ![uv-audit](./docs/images/uv-audit.png)
 
