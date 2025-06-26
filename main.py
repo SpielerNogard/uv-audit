@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "aiohttp",
+#     "git+https://github.com/SpielerNogard/uv-audit.git@main"
 # ]
 # ///
 
@@ -10,17 +10,18 @@ from uv_audit.vulnerability_scanner import VulnerabilityScanner
 import argparse
 from uv_audit.table_view import print_simple_table
 from pathlib import Path
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='pip-audit like tool for auditing Python packages in requirements files.',
+        description="pip-audit like tool for auditing Python packages in requirements files.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
-        'files',
-        nargs='+',
+        "files",
+        nargs="+",
         type=Path,
-        help='one or more requirements files to audit (e.g. requirements.txt, requirements-dev.txt)',
+        help="one or more requirements files to audit (e.g. requirements.txt, requirements-dev.txt)",
     )
 
     args = parser.parse_args()
@@ -44,8 +45,14 @@ if __name__ == "__main__":
         vulns = []
         for result in results:
             for vuln in result["vulnerabilities"]:
-                vulns.append({"package": result["package"], "version": result["version"], "vulnerability": vuln["id"], "fixed_in": vuln.get("fixed_in", "N/A"), "link": vuln.get("link", "N/A")})
+                vulns.append(
+                    {
+                        "package": result["package"],
+                        "version": result["version"],
+                        "vulnerability": vuln["id"],
+                        "fixed_in": vuln.get("fixed_in", "N/A"),
+                        "link": vuln.get("link", "N/A"),
+                    }
+                )
 
         print_simple_table(vulns)
-
-

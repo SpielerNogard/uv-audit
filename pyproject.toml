@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uv-audit"
+version = "0.1.0"
+description = "A pip-audit like tool for auditing Python packages in requirements files."
+authors = [
+    {name = "SpielerNogard", email = "christophermueller2@outlook.de"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "aiohttp>=3.8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
