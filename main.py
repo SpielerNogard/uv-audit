@@ -72,9 +72,10 @@ if __name__ == "__main__":
         print("Error: No requirements files or project directory provided.")
         sys.exit(1)
 
+    all_vulns = []
     if args.project:
-        _handle_file(args.project, False)
-
+        vulns = _handle_file(args.project, False)
+        all_vulns.extend(vulns)
     for file_path in args.requirements_files:
         if not file_path.exists():
             print(f"Error: {file_path} does not exist.")
@@ -83,6 +84,11 @@ if __name__ == "__main__":
         if not file_path.is_file():
             print(f"Error: {file_path} is not a file.")
             continue
-        _handle_file(file_path=file_path, is_file=True)
+        vulns = _handle_file(file_path=file_path, is_file=True)
+        all_vulns.extend(vulns)
+
+    if all_vulns:
+        sys.exit("Vulnerabilites found")
+    sys.exit(0)
 
     # md_view.to_file("test.md")
