@@ -12,6 +12,39 @@ from uv_audit.table_view import print_simple_table
 from pathlib import Path
 import sys
 
+
+def _handle_file(file_path: str, is_file: bool):
+    env_handler = EnvironmentHandler()
+    env_handler.create_venv()
+    env_handler.install_requirements(requirements_file=file_path, is_file=is_file)
+    requirements = env_handler.list_packages()
+    results = VulnerabilityScanner().run_check(requirements=requirements)
+    env_handler.delete_venv()
+
+    vulns = []
+    for result in results:
+        for vuln in result["vulnerabilities"]:
+            vulns.append(
+                {
+                    "Name": result["package"],
+                    "Version": result["version"],
+                    "ID": vuln["id"],
+                    "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
+                    "Link": vuln.get("link", "N/A"),
+                }
+            )
+    # print(vulns)
+    # print(f"Auditing {file_path} for known vulnerabilities...")
+    if vulns:
+        print(
+            f"Found {len(vulns)} known vulnerabilities in {len(set([vuln['Name'] for vuln in vulns]))} packages"
+        )
+        print_simple_table(vulns)
+        return vulns
+    print("No known vulnerabilities found")
+    return vulns
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="pip-audit like tool for auditing Python packages in requirements files.",
@@ -19,15 +52,30 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "files",
-        nargs="+",
+        "-r",
+        "--requirement",
+        dest="requirements_files",
+        action="append",
         type=Path,
-        help="one or more requirements files to audit (e.g. requirements.txt, requirements-dev.txt)",
+        default=[],
+        help="requirements file to audit (can be used multiple times: -r requirements.txt -r requirements-dev.txt)",
+    )
+
+    parser.add_argument(
+        "project",
+        nargs="?",
+        help="optional argument (e.g. directory path)",
     )
 
     args = parser.parse_args()
+    if not args.requirements_files and not args.project:
+        print("Error: No requirements files or project directory provided.")
+        sys.exit(1)
 
-    for file_path in args.files:
+    if args.project:
+        _handle_file(args.project, False)
+
+    for file_path in args.requirements_files:
         if not file_path.exists():
             print(f"Error: {file_path} does not exist.")
             continue
@@ -35,31 +83,6 @@ if __name__ == "__main__":
         if not file_path.is_file():
             print(f"Error: {file_path} is not a file.")
             continue
+        _handle_file(file_path=file_path, is_file=True)
 
-        env_handler = EnvironmentHandler()
-        env_handler.create_venv()
-        env_handler.install_requirements(requirements_file=file_path)
-        requirements = env_handler.list_packages()
-        results = VulnerabilityScanner().run_check(requirements=requirements)
-        env_handler.delete_venv()
-
-        vulns = []
-        for result in results:
-            for vuln in result["vulnerabilities"]:
-                vulns.append(
-                    {
-                        "Name": result["package"],
-                        "Version": result["version"],
-                        "ID": vuln["id"],
-                        "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
-                        "Link": vuln.get("link", "N/A"),
-                    }
-                )
-        print(f"Auditing {file_path} for known vulnerabilities...")
-        if vulns:
-            print(
-                f"Found {len(vulns)} known vulnerabilities in {len(set([vuln['Name'] for vuln in vulns]))} packages"
-            )
-            print_simple_table(vulns)
-            sys.exit(0)
-        print("No known vulnerabilities found")
+    # md_view.to_file("test.md")

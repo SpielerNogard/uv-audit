@@ -133,7 +133,7 @@ I expect the time to diverge even more with larger requirements files or when us
 
 # Usage
 1. Install requirements: `uv pip install aiohttp`
-2. run uv-audit: `python3 main.py requirements.txt requiremens2.txt`
+2. run uv-audit: `python3 main.py -r requirements.txt -r requiremens2.txt`
 
-Or directly with uv run: `uv run https://raw.githubusercontent.com/SpielerNogard/uv-audit/refs/heads/main/main.py requirements.txt`
+Or directly with uv run: `uv run https://raw.githubusercontent.com/SpielerNogard/uv-audit/refs/heads/main/main.py -r requirements.txt`
 

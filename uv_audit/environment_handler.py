@@ -3,9 +3,10 @@ import subprocess
 import os
 import shutil
 
+
 def parse_pip_list_to_requirements(pip_list_output):
     """Parst uv pip list Output zu package==version Format."""
-    lines = pip_list_output.strip().split('\n')
+    lines = pip_list_output.strip().split("\n")
     requirements = []
 
     # Überspringe Header-Zeilen (Package, ---------)
@@ -16,7 +17,7 @@ def parse_pip_list_to_requirements(pip_list_output):
         if not line:
             continue
 
-        if line.startswith('Package') or line.startswith('-'):
+        if line.startswith("Package") or line.startswith("-"):
             data_started = True
             continue
 
@@ -29,6 +30,7 @@ def parse_pip_list_to_requirements(pip_list_output):
 
     return requirements
 
+
 class EnvironmentHandler:
     def __init__(self):
         self._folder = f"/tmp/{uuid.uuid4()}"
@@ -38,15 +40,10 @@ class EnvironmentHandler:
         """Executes a shell command"""
         try:
             result = subprocess.run(
-                command,
-                shell=True,
-                check=True,
-                capture_output=True,
-                text=True,
-                cwd=cwd
+                command, shell=True, check=True, capture_output=True, text=True, cwd=cwd
             )
             return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             raise
 
     def create_venv(self):
@@ -58,11 +55,15 @@ class EnvironmentHandler:
             return True
         return False
 
-    def install_requirements(self, requirements_file:str):
+    def install_requirements(self, requirements_file: str, is_file: bool = True):
         if not os.path.exists(requirements_file):
             raise Exception(f"<UNK> {requirements_file} not found.")
-
-        install_cmd = f"uv pip install -r {requirements_file} --python {self._folder}"
+        if is_file:
+            install_cmd = (
+                f"uv pip install -r {requirements_file} --python {self._folder}"
+            )
+        else:
+            install_cmd = f"uv pip install {requirements_file} --python {self._folder}"
         result = self.run_command(install_cmd)
 
         if result is not None:
