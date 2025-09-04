@@ -2,7 +2,6 @@ name: Check Requirements for vulnerabilities using uv-audit
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
