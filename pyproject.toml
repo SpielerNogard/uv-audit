@@ -14,7 +14,41 @@ requires-python = ">=3.13"
 
 dependencies = [
     "aiohttp>=3.8.0",
+    "typer==0.17.3",
+    "rich==14.1.0",
 ]
+
+[project.scripts]
+uv-audit = "uv_audit:main"
 
 [tool.setuptools.packages.find]
 exclude = ["*.tests", "*.tests.*", "tests.*", "tests"]
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py313"
+
+[tool.ruff.lint]
+# for more rules: https://docs.astral.sh/ruff/rules/
+select = [
+    "A", # prevent using keywords that clobber python builtins
+    "E", # pycodestyle
+    "F", # pyflakes
+    "UP", # alert you when better syntax is available in your python version
+    "I", # isort
+    "N", # PEP8 naming
+    "W"   # Warnings
+]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+# Enable reformatting of code snippets in docstrings.
+docstring-code-format = true
