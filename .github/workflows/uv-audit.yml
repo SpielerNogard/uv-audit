@@ -20,7 +20,7 @@ jobs:
 
       - name: Install uv-audit
         run: |
-          uv tool install  git+https://github.com/SpielerNogard/uv-audit.git@${{ github.ref_name }}
+          uv tool install  git+https://github.com/SpielerNogard/uv-audit.git@${{ github.head_ref }}
 
       - name: Run uv-audit on project level
         id: project-audit
