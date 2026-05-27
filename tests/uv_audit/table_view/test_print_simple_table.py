@@ -1,9 +1,12 @@
+"""Tests for print_simple_table, covering empty data, default headers, and explicit header ordering."""
+
 import pytest
 
 from uv_audit.table_view import print_simple_table
 
 
 def test_print_simple_table_with_empty_data(capsys: pytest.CaptureFixture[str]):
+    """Verify print_simple_table prints 'Keine Daten vorhanden' when given an empty list."""
     # act
     print_simple_table([])
 
@@ -15,6 +18,7 @@ def test_print_simple_table_with_empty_data(capsys: pytest.CaptureFixture[str]):
 def test_print_simple_table_with_data_and_default_headers(
     capsys: pytest.CaptureFixture[str],
 ):
+    """Verify print_simple_table renders headers, data rows, and separator dashes for the given records."""
     # arrange
     data = [
         {"Name": "click", "Version": "8.2.1"},
@@ -41,6 +45,7 @@ def test_print_simple_table_with_data_and_default_headers(
 
 
 def test_print_simple_table_with_explicit_headers(capsys: pytest.CaptureFixture[str]):
+    """Verify print_simple_table respects the explicit header order when headers are provided."""
     # arrange
     data = [
         {"Name": "click", "Version": "8.2.1"},

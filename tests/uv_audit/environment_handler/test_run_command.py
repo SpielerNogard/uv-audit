@@ -1,3 +1,5 @@
+"""Tests for EnvironmentHandler.run_command, verifying subprocess invocation and error propagation."""
+
 import subprocess
 
 import pytest
@@ -7,6 +9,7 @@ from uv_audit.environment_handler import EnvironmentHandler
 
 
 def test_run_command_success(mocker: MockerFixture):
+    """Verify run_command invokes subprocess.run with shell=True and returns the stripped stdout."""
     # arrange
     mock_result = mocker.MagicMock()
     mock_result.stdout = "hello\n"
@@ -30,6 +33,7 @@ def test_run_command_success(mocker: MockerFixture):
 
 
 def test_run_command_failure_reraises(mocker: MockerFixture):
+    """Ensure run_command re-raises CalledProcessError when subprocess.run fails."""
     # arrange
     mocker.patch(
         "uv_audit.environment_handler.subprocess.run",

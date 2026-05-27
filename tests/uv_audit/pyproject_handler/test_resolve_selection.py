@@ -91,6 +91,7 @@ def test_resolve_selection_explicit_extra(tmp_path: Path):
 
 
 def test_resolve_selection_explicit_group(tmp_path: Path):
+    """Verify that an explicitly named dependency group is included in the selection groups list."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -119,6 +120,7 @@ def test_resolve_selection_explicit_group(tmp_path: Path):
 
 
 def test_resolve_selection_unknown_extra_raises(tmp_path: Path):
+    """Ensure resolve_selection raises UnknownExtraError with the bad name and available extras when the extra is unknown."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -145,6 +147,7 @@ def test_resolve_selection_unknown_extra_raises(tmp_path: Path):
 
 
 def test_resolve_selection_unknown_group_raises(tmp_path: Path):
+    """Ensure resolve_selection raises UnknownGroupError with the bad name and available groups when the group is unknown."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -171,6 +174,7 @@ def test_resolve_selection_unknown_group_raises(tmp_path: Path):
 
 
 def test_resolve_selection_all_extras(tmp_path: Path):
+    """Verify that all_extras=True populates the extras list with every optional-dependency key."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -198,6 +202,7 @@ def test_resolve_selection_all_extras(tmp_path: Path):
 
 
 def test_resolve_selection_all_groups(tmp_path: Path):
+    """Verify that all_groups=True populates the groups list with every dependency-group key."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -227,6 +232,7 @@ def test_resolve_selection_all_groups(tmp_path: Path):
 def test_resolve_selection_uses_default_groups_when_nothing_explicit(
     tmp_path: Path,
 ):
+    """Verify that [tool.uv] default-groups are applied when no groups are explicitly requested."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -257,6 +263,7 @@ def test_resolve_selection_uses_default_groups_when_nothing_explicit(
 
 
 def test_resolve_selection_explicit_group_overrides_default(tmp_path: Path):
+    """Verify that an explicitly requested group takes precedence over [tool.uv] default-groups."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
