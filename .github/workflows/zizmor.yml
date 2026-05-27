@@ -1,0 +1,44 @@
+name: GitHub Actions Security Analysis with zizmor
+
+on:
+  workflow_call:
+    inputs:
+      zizmor-version:
+        description: "zizmor version to install"
+        type: string
+        required: false
+        default: "1.23.1"
+      online-audits:
+        description: "Enable online audits for enhanced detection"
+        type: boolean
+        required: false
+        default: true
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+
+permissions: {} # all permissions defined at job level
+
+jobs:
+  zizmor:
+    name: Run zizmor
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read # checkout repository
+      actions: read # query workflow metadata
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        with:
+          version: ${{ inputs.zizmor-version || '1.23.1' }}
+          online-audits: ${{ inputs.online-audits }}
+          advanced-security: false

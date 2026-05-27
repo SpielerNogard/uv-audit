@@ -1,0 +1,104 @@
+name: Publish Python 🐍 distribution 📦 to PyPI
+
+on:
+  workflow_run:
+    workflows:
+      - Bump version
+    types:
+      - completed
+
+jobs:
+  build:
+    if: "startsWith(github.event.head_commit.message, 'bump:')"
+    name: Build distribution 📦
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: true
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        build
+        --user
+    - name: Build a binary wheel and a source tarball
+      run: python3 -m build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: >-
+      Publish Python 🐍 distribution 📦 to PyPI
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/uv-audit2
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: >-
+      Sign the Python 🐍 distribution 📦 with Sigstore
+      and upload them to GitHub Release
+    needs:
+    - publish-to-pypi
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Sign the dists with Sigstore
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
+      with:
+        inputs: >-
+          ./dist/*.tar.gz
+          ./dist/*.whl
+    - name: Debug tag output
+      run: |
+        echo "Tag name: ${{ steps.get_latest_tag.outputs.tag_name }}"
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        file=$(ls dist/*.tar.gz | head -n 1)
+        version=$(echo "$file" | grep -oP '(?<=-)[0-9]+\.[0-9]+\.[0-9]+(?=\.tar\.gz)')
+        echo "Extracted version: $version"
+        gh release create "$version" --repo "$GITHUB_REPOSITORY" --notes ""
+    - name: Upload artifact signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: |
+        file=$(ls dist/*.tar.gz | head -n 1)
+        version=$(echo "$file" | grep -oP '(?<=-)[0-9]+\.[0-9]+\.[0-9]+(?=\.tar\.gz)')
+        echo "Extracted version: $version"
+        gh release upload "$version" dist/** --repo "$GITHUB_REPOSITORY"
