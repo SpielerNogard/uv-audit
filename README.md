@@ -288,6 +288,7 @@ jobs:
 | `pyproject_args` | `--all` | Extra CLI args for pyproject scans |
 | `uv_audit_version` | _matches action tag_ | Version of `uv-audit2` installed from PyPI |
 | `comment_on_pr` | `true` | Create/update the sticky PR comment |
+| `github_token` | `${{ github.token }}` | Token used for the comment API |
 
 ### Outputs
 
