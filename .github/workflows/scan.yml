@@ -35,6 +35,9 @@ on:
       uv_audit_version:
         type: string
         default: "0.2.0"  # x-cz-version
+      uv_audit_source:
+        type: string
+        default: ""
       comment_on_pr:
         type: boolean
         default: true
@@ -57,6 +60,7 @@ jobs:
           include: ${{ inputs.include }}
           exclude: ${{ inputs.exclude }}
           uv_audit_version: ${{ inputs.uv_audit_version }}
+          uv_audit_source: ${{ inputs.uv_audit_source }}
 
   scan:
     needs: discover
@@ -76,6 +80,7 @@ jobs:
           pyproject_args: ${{ inputs.pyproject_args }}
           artifact_name: ${{ strategy.job-index }}
           uv_audit_version: ${{ inputs.uv_audit_version }}
+          uv_audit_source: ${{ inputs.uv_audit_source }}
 
   report:
     needs: [discover, scan]
@@ -99,6 +104,7 @@ jobs:
           comment_on_pr: ${{ inputs.comment_on_pr }}
           github_token: ${{ secrets.github_token || github.token }}
           uv_audit_version: ${{ inputs.uv_audit_version }}
+          uv_audit_source: ${{ inputs.uv_audit_source }}
       - name: Fail when vulnerabilities present
         if: ${{ inputs.fail_on_vuln && steps.report.outputs.vulnerable == 'true' }}
         run: |

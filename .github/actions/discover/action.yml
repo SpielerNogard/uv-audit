@@ -28,6 +28,10 @@ inputs:
   uv_audit_version:
     description: Version of uv-audit2 to install from PyPI
     required: true
+  uv_audit_source:
+    description: "Optional installable source for uv-audit (path or VCS URL); when set, overrides uv_audit_version"
+    required: false
+    default: ""
 
 outputs:
   files:
@@ -46,7 +50,15 @@ runs:
     - uses: astral-sh/setup-uv@v3
     - name: Install uv-audit
       shell: bash
-      run: uv tool install "uv-audit2==${{ inputs.uv_audit_version }}"
+      env:
+        UV_AUDIT_SOURCE: ${{ inputs.uv_audit_source }}
+        UV_AUDIT_VERSION: ${{ inputs.uv_audit_version }}
+      run: |
+        if [ -n "$UV_AUDIT_SOURCE" ]; then
+          uv tool install "$UV_AUDIT_SOURCE"
+        else
+          uv tool install "uv-audit2==$UV_AUDIT_VERSION"
+        fi
     - id: run
       shell: bash
       env:

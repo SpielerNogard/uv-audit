@@ -44,6 +44,10 @@ inputs:
     description: Version of uv-audit2 to install from PyPI (kept in sync via commitizen)
     required: false
     default: "0.2.0"  # x-cz-version
+  uv_audit_source:
+    description: "Optional installable source for uv-audit (path or VCS URL); when set, overrides uv_audit_version"
+    required: false
+    default: ""
   comment_on_pr:
     description: Create or update the sticky PR comment when running in PR context
     required: false
@@ -77,6 +81,7 @@ runs:
         include: ${{ inputs.include }}
         exclude: ${{ inputs.exclude }}
         uv_audit_version: ${{ inputs.uv_audit_version }}
+        uv_audit_source: ${{ inputs.uv_audit_source }}
     - name: Scan each file
       if: ${{ steps.discover.outputs.count != '0' }}
       shell: bash
@@ -128,6 +133,7 @@ runs:
         comment_on_pr: ${{ inputs.comment_on_pr }}
         github_token: ${{ inputs.github_token }}
         uv_audit_version: ${{ inputs.uv_audit_version }}
+        uv_audit_source: ${{ inputs.uv_audit_source }}
     - name: Fail when vulnerabilities present
       if: ${{ inputs.fail_on_vuln == 'true' && steps.report.outputs.vulnerable == 'true' }}
       shell: bash
