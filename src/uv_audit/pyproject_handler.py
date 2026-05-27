@@ -43,15 +43,25 @@ def resolve_selection(
 
     available_extras = list(project.get("optional-dependencies", {}).keys())
     available_groups = list(data.get("dependency-groups", {}).keys())
+    default_groups = list(data.get("tool", {}).get("uv", {}).get("default-groups", []))
 
     for extra in extras:
         _validate(extra, available_extras, "extra", UnknownExtraError)
     for group in groups:
         _validate(group, available_groups, "group", UnknownGroupError)
 
+    resolved_extras = list(available_extras) if all_extras else list(extras)
+
+    if all_groups:
+        resolved_groups = list(available_groups)
+    elif groups:
+        resolved_groups = list(groups)
+    else:
+        resolved_groups = default_groups
+
     return PyProjectSelection(
         path=path,
-        extras=list(extras),
-        groups=list(groups),
+        extras=resolved_extras,
+        groups=resolved_groups,
         has_main_deps=has_main_deps,
     )

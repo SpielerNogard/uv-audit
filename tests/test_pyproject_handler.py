@@ -163,3 +163,119 @@ def test_resolve_selection_unknown_group_raises(tmp_path: Path):
         )
     assert "nope" in str(exc.value)
     assert "dev" in str(exc.value)
+
+
+def test_resolve_selection_all_extras(tmp_path: Path):
+    # arrange
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[project]\n"
+        'name = "demo"\n'
+        'version = "0.0.0"\n'
+        "dependencies = []\n"
+        "\n"
+        "[project.optional-dependencies]\n"
+        'cli = ["click"]\n'
+        'ml = ["numpy"]\n'
+    )
+
+    # act
+    selection = resolve_selection(
+        path=pyproject,
+        extras=[],
+        groups=[],
+        all_extras=True,
+        all_groups=False,
+    )
+
+    # assert
+    assert sorted(selection.extras) == ["cli", "ml"]
+
+
+def test_resolve_selection_all_groups(tmp_path: Path):
+    # arrange
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[project]\n"
+        'name = "demo"\n'
+        'version = "0.0.0"\n'
+        "dependencies = []\n"
+        "\n"
+        "[dependency-groups]\n"
+        'dev = ["pytest"]\n'
+        'test = ["coverage"]\n'
+    )
+
+    # act
+    selection = resolve_selection(
+        path=pyproject,
+        extras=[],
+        groups=[],
+        all_extras=False,
+        all_groups=True,
+    )
+
+    # assert
+    assert sorted(selection.groups) == ["dev", "test"]
+
+
+def test_resolve_selection_uses_default_groups_when_nothing_explicit(
+    tmp_path: Path,
+):
+    # arrange
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[project]\n"
+        'name = "demo"\n'
+        'version = "0.0.0"\n'
+        "dependencies = []\n"
+        "\n"
+        "[dependency-groups]\n"
+        'dev = ["pytest"]\n'
+        'test = ["coverage"]\n'
+        "\n"
+        "[tool.uv]\n"
+        'default-groups = ["dev"]\n'
+    )
+
+    # act
+    selection = resolve_selection(
+        path=pyproject,
+        extras=[],
+        groups=[],
+        all_extras=False,
+        all_groups=False,
+    )
+
+    # assert
+    assert selection.groups == ["dev"]
+
+
+def test_resolve_selection_explicit_group_overrides_default(tmp_path: Path):
+    # arrange
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[project]\n"
+        'name = "demo"\n'
+        'version = "0.0.0"\n'
+        "dependencies = []\n"
+        "\n"
+        "[dependency-groups]\n"
+        'dev = ["pytest"]\n'
+        'test = ["coverage"]\n'
+        "\n"
+        "[tool.uv]\n"
+        'default-groups = ["dev"]\n'
+    )
+
+    # act
+    selection = resolve_selection(
+        path=pyproject,
+        extras=[],
+        groups=["test"],
+        all_extras=False,
+        all_groups=False,
+    )
+
+    # assert
+    assert selection.groups == ["test"]
