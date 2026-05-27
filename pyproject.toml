@@ -75,6 +75,10 @@ max-complexity = 10 # ISO 25010 audit threshold: max 10 McCabe per unit
 max-branches = 10
 max-statements = 30
 
+[tool.ruff.lint.per-file-ignores]
+# CLI entry point: typer forces many arguments and a single dispatch function
+"src/uv_audit/__init__.py" = ["PLR0913", "PLR0912", "PLR0915", "C901"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["bbase_iac"]
 force-wrap-aliases = true
