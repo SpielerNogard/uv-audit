@@ -16,6 +16,7 @@ from typing import Annotated
 import typer
 from rich import print as rprint
 
+from .discover import DEFAULT_EXCLUDES, DEFAULT_INCLUDES, discover_files
 from .file_handler import handle_file, handle_pyproject
 from .pyproject_handler import (
     PyProjectSelection,
@@ -194,6 +195,21 @@ def cmd(
         bool,
         typer.Option(help="Print version", show_default=False),
     ] = False,
+    discover: Annotated[
+        bool,
+        typer.Option("--discover", help="List dependency files instead of scanning"),
+    ] = False,
+    include: Annotated[
+        list[str] | None,
+        typer.Option("--include", help="Glob pattern to match (repeatable)"),
+    ] = None,
+    exclude: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--exclude",
+            help="Path component or glob pattern to skip (repeatable)",
+        ),
+    ] = None,
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Emit results as JSON to stdout"),
@@ -215,6 +231,22 @@ def cmd(
     """
     if version:
         rprint(f"[bold]uv-audit {__version__}[/bold]")
+        return
+
+    if discover:
+        root = Path(project) if project else Path(".")
+        files = discover_files(
+            root=root,
+            includes=include or DEFAULT_INCLUDES,
+            excludes=exclude or DEFAULT_EXCLUDES,
+        )
+        if json_output:
+            print(json.dumps({"files": files}, indent=2))
+        elif not files:
+            rprint("[yellow]No matching files found")
+        else:
+            for entry in files:
+                rprint(f"[bold]{entry['kind']}[/bold]  {entry['path']}")
         return
 
     requirements_files = requirements_files or []
