@@ -1,3 +1,5 @@
+"""Tests for resolve_selection, covering all combinations of extras, groups, defaults, and error paths."""
+
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,7 @@ from uv_audit.pyproject_handler import (
 
 
 def test_resolve_selection_detects_main_deps(tmp_path: Path):
+    """Verify resolve_selection sets has_main_deps=True when [project.dependencies] exists."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -38,6 +41,7 @@ def test_resolve_selection_detects_main_deps(tmp_path: Path):
 
 
 def test_resolve_selection_missing_main_deps(tmp_path: Path):
+    """Verify resolve_selection sets has_main_deps=False when [project.dependencies] is absent."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nname = "demo"\nversion = "0.0.0"\n')
@@ -58,6 +62,7 @@ def test_resolve_selection_missing_main_deps(tmp_path: Path):
 
 
 def test_resolve_selection_explicit_extra(tmp_path: Path):
+    """Verify that an explicitly named extra is included in the selection extras list."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(

@@ -1,3 +1,5 @@
+"""Tests that the --all flag causes the CLI to collect all extras and all dependency groups."""
+
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -10,6 +12,7 @@ from .conftest import runner, write_pyproject
 def test_cli_all_flag_implies_all_groups_and_all_extras(
     mocker: MockerFixture, tmp_path: Path
 ):
+    """Verify that --all expands the selection to include every extra and every dependency group."""
     # arrange
     pyproject = write_pyproject(
         tmp_path,

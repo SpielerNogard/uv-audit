@@ -1,7 +1,10 @@
+"""Tests for the parse_pip_list_to_requirements helper function."""
+
 from uv_audit.environment_handler import parse_pip_list_to_requirements
 
 
 def test_parse_pip_list_to_requirements_typical_output():
+    """Verify that a standard pip list output is parsed into a list of 'name==version' strings."""
     # arrange
     pip_list_output = (
         "Package    Version\n---------- -------\nclick      8.2.1\nrequests   2.32.3\n"
@@ -15,6 +18,7 @@ def test_parse_pip_list_to_requirements_typical_output():
 
 
 def test_parse_pip_list_to_requirements_empty_input():
+    """Verify that an empty string returns an empty list."""
     # act
     result = parse_pip_list_to_requirements("")
 
@@ -23,6 +27,7 @@ def test_parse_pip_list_to_requirements_empty_input():
 
 
 def test_parse_pip_list_to_requirements_skips_blank_and_short_lines():
+    """Verify that blank lines and lines without two whitespace-separated tokens are ignored."""
     # arrange
     pip_list_output = (
         "Package    Version\n"

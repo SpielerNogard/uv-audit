@@ -1,3 +1,5 @@
+"""Tests that a positional directory argument is treated as a pyproject.toml project."""
+
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -10,6 +12,7 @@ from .conftest import runner, write_pyproject
 def test_cli_positional_project_treated_as_pyproject(
     mocker: MockerFixture, tmp_path: Path
 ):
+    """Verify that passing a project directory as a positional argument routes to handle_pyproject."""
     # arrange
     write_pyproject(
         tmp_path,

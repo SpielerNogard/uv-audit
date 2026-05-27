@@ -1,3 +1,5 @@
+"""Tests that the CLI prints a 'does not exist' error and skips processing for missing paths."""
+
 import uv_audit
 from uv_audit import app
 
@@ -7,6 +9,7 @@ from .conftest import runner
 def test_cli_nonexistent_file_path_emits_error_and_continues(
     mocker,
 ):
+    """Verify that a non-existent path prints 'does not exist' without calling any handler."""
     # arrange
     mocker.patch("uv_audit.handle_file", return_value=[])
     mocker.patch("uv_audit.handle_pyproject", return_value=[])

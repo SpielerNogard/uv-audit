@@ -1,3 +1,5 @@
+"""Tests for the handle_pyproject orchestration function, including skip-install and extras-only cases."""
+
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -7,6 +9,7 @@ from uv_audit.pyproject_handler import PyProjectSelection
 
 
 def test_handle_pyproject_runs_full_flow(mocker: MockerFixture, tmp_path: Path):
+    """Verify handle_pyproject creates a venv, installs the project, scans, and cleans up."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\ndependencies=[]\n")
@@ -38,6 +41,7 @@ def test_handle_pyproject_runs_full_flow(mocker: MockerFixture, tmp_path: Path):
 def test_handle_pyproject_skips_install_when_nothing_selected(
     mocker: MockerFixture, tmp_path: Path
 ):
+    """Verify that handle_pyproject does not call install_pyproject when has_main_deps is False and no extras or groups are selected."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\n")
@@ -63,6 +67,7 @@ def test_handle_pyproject_skips_install_when_nothing_selected(
 def test_handle_pyproject_installs_when_extras_only(
     mocker: MockerFixture, tmp_path: Path
 ):
+    """Verify that handle_pyproject calls install_pyproject when extras are selected even without main deps."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\n")

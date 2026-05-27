@@ -1,9 +1,12 @@
+"""Tests for the handle_file orchestration function, verifying the full venv-install-scan-delete flow."""
+
 from pytest_mock import MockerFixture
 
 from uv_audit.file_handler import handle_file
 
 
 def test_handle_file_runs_full_flow_and_returns_vulns(mocker: MockerFixture):
+    """Verify that handle_file creates a venv, installs, scans, deletes the venv, and returns vulnerabilities."""
     # arrange
     env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
     env = env_cls.return_value
@@ -31,6 +34,7 @@ def test_handle_file_runs_full_flow_and_returns_vulns(mocker: MockerFixture):
 
 
 def test_handle_file_returns_empty_when_no_vulns(mocker: MockerFixture):
+    """Verify that handle_file returns an empty list when the scanner finds no vulnerabilities."""
     # arrange
     env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
     env = env_cls.return_value

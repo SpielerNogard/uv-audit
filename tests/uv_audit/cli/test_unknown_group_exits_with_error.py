@@ -1,3 +1,5 @@
+"""Tests that requesting a non-existent dependency group causes the CLI to exit with an error."""
+
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -8,6 +10,7 @@ from .conftest import runner, write_pyproject
 
 
 def test_cli_unknown_group_exits_with_error(mocker: MockerFixture, tmp_path: Path):
+    """Verify that specifying an unknown --group exits with a non-zero code and names the bad group and valid ones."""
     # arrange
     pyproject = write_pyproject(
         tmp_path,

@@ -1,3 +1,5 @@
+"""Tests that mixing a requirements file and a pyproject.toml issues a warning and dispatches both handlers."""
+
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -10,6 +12,7 @@ from .conftest import runner, write_pyproject
 def test_cli_mixed_inputs_warns_and_dispatches_both(
     mocker: MockerFixture, tmp_path: Path
 ):
+    """Verify that passing both a requirements file and a pyproject.toml warns and calls both handlers."""
     # arrange
     req = tmp_path / "requirements.txt"
     req.write_text("requests==2.32.3\n")

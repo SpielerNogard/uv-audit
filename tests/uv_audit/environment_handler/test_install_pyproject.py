@@ -1,3 +1,5 @@
+"""Tests for EnvironmentHandler.install_pyproject, covering extras, groups, and the no-selection case."""
+
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -9,6 +11,7 @@ from uv_audit.pyproject_handler import PyProjectSelection
 def test_install_pyproject_builds_command_with_extras_and_groups(
     mocker: MockerFixture, tmp_path: Path
 ):
+    """Verify that extras and groups are appended to the uv pip install command in the correct format."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname = 'x'\nversion = '0.0.0'\n")
@@ -35,6 +38,7 @@ def test_install_pyproject_builds_command_with_extras_and_groups(
 
 
 def test_install_pyproject_no_extras_no_groups(mocker: MockerFixture, tmp_path: Path):
+    """Verify that the install command has no brackets or --group flags when selection has no extras or groups."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname = 'x'\nversion = '0.0.0'\n")

@@ -1,3 +1,11 @@
+"""Entry point for the uv-audit CLI application.
+
+This module wires together the Typer CLI, file/pyproject handling, and
+vulnerability reporting. It defines the top-level ``cmd`` command that users
+invoke as ``uv-audit``, plus small private helpers used exclusively by that
+command.
+"""
+
 __version__ = "0.1.0"
 
 import sys
@@ -22,12 +30,48 @@ app = typer.Typer(
 
 
 def _is_pyproject(path: Path) -> bool:
+    """Return True if *path* points to a ``pyproject.toml`` file.
+
+    Parameters
+    ----------
+    path : Path
+        File path to inspect.
+
+    Returns
+    -------
+    bool
+        ``True`` when the file is named ``pyproject.toml``, ``False`` otherwise.
+
+    Examples
+    --------
+    >>> from pathlib import Path
+    >>> _is_pyproject(Path("/some/project/pyproject.toml"))
+    True
+    >>> _is_pyproject(Path("/some/project/requirements.txt"))
+    False
+    """
     return path.name == "pyproject.toml"
 
 
 def _warn_selection_flags(
     selection_flags_set: bool, has_requirements: bool, has_pyproject: bool
 ) -> None:
+    """Emit a warning when group/extra flags are used with incompatible inputs.
+
+    Prints a yellow Rich-formatted warning when the caller supplied
+    ``--group``, ``--extra``, ``--all-groups``, or ``--all-extras`` flags
+    alongside requirement files for which those flags have no effect.
+
+    Parameters
+    ----------
+    selection_flags_set : bool
+        Whether any of the selection flags (``--group``, ``--extra``,
+        ``--all-groups``, ``--all-extras``) were provided by the user.
+    has_requirements : bool
+        Whether at least one plain ``requirements.txt`` input is present.
+    has_pyproject : bool
+        Whether at least one ``pyproject.toml`` input is present.
+    """
     if not selection_flags_set or not has_requirements:
         return
     if not has_pyproject:
@@ -49,6 +93,36 @@ def _process_pyproject(
     all_extras: bool,
     all_groups: bool,
 ) -> list[dict]:
+    """Resolve a ``pyproject.toml`` selection and run a vulnerability scan.
+
+    Calls :func:`~uv_audit.pyproject_handler.resolve_selection` to determine
+    which extras and dependency-groups to install, then delegates to
+    :func:`~uv_audit.file_handler.handle_pyproject` for the actual install and
+    scan. Exits with code 1 on unknown extras or groups.
+
+    Parameters
+    ----------
+    path : Path
+        Absolute or relative path to the ``pyproject.toml`` file.
+    extras : list[str]
+        Explicit optional-dependency extras to include.
+    groups : list[str]
+        Explicit dependency groups to include.
+    all_extras : bool
+        When ``True``, include every declared optional-dependency extra.
+    all_groups : bool
+        When ``True``, include every declared dependency group.
+
+    Returns
+    -------
+    list[dict]
+        Vulnerability records returned by the scan (empty list when none found).
+
+    Raises
+    ------
+    typer.Exit
+        Raised with exit code 1 when an unknown extra or group is specified.
+    """
     try:
         selection: PyProjectSelection = resolve_selection(
             path=path,
@@ -108,6 +182,20 @@ def cmd(
         typer.Option(help="Print version", show_default=False),
     ] = False,
 ):
+    """Audit Python dependencies for known vulnerabilities.
+
+    Accepts one or more ``requirements.txt`` or ``pyproject.toml`` files (via
+    ``-r``/``--requirement``), or a project directory shortcut as a positional
+    argument.  For each input it creates a temporary virtual environment,
+    installs the resolved dependencies, queries the PyPI vulnerability database
+    in parallel, prints a table of findings, and exits with a non-zero status
+    when any vulnerability is found.
+
+    The ``--group``, ``--extra``, ``--all-groups``, and ``--all-extras`` flags
+    control which optional dependencies are included when auditing a
+    ``pyproject.toml``.  They are silently ignored for plain
+    ``requirements.txt`` inputs (a warning is printed in that case).
+    """
     if version:
         rprint(f"[bold]uv-audit {__version__}[/bold]")
         return
@@ -155,4 +243,5 @@ def cmd(
 
 
 def main():
+    """Invoke the Typer application as a console-script entry point."""
     app()

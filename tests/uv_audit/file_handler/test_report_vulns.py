@@ -1,3 +1,5 @@
+"""Tests for the _report_vulns helper, verifying output formatting and the returned vulnerability list."""
+
 import pytest
 
 from uv_audit.file_handler import _report_vulns
@@ -6,6 +8,7 @@ from uv_audit.file_handler import _report_vulns
 def test_report_vulns_prints_summary_when_vulns_found(
     capsys: pytest.CaptureFixture[str],
 ):
+    """Verify _report_vulns prints a vulnerability summary and returns the flattened vuln list."""
     # arrange
     results = [
         {
@@ -36,6 +39,7 @@ def test_report_vulns_prints_summary_when_vulns_found(
 def test_report_vulns_prints_no_vulnerabilities_when_empty(
     capsys: pytest.CaptureFixture[str],
 ):
+    """Verify _report_vulns prints 'No known vulnerabilities found' and returns an empty list when given no results."""
     # act
     vulns = _report_vulns([])
 
