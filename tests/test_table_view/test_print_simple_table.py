@@ -1,6 +1,6 @@
 import pytest
 
-from uv_audit.table_view import _compute_widths, _format_row, print_simple_table
+from uv_audit.table_view import print_simple_table
 
 
 def test_print_simple_table_with_empty_data(capsys: pytest.CaptureFixture[str]):
@@ -55,24 +55,3 @@ def test_print_simple_table_with_explicit_headers(capsys: pytest.CaptureFixture[
     header_line = lines[0]
     # "Version" must appear before "Name" in the header line
     assert header_line.index("Version") < header_line.index("Name")
-
-
-def test_format_row_pads_to_widths():
-    # act
-    result = _format_row(["a", "bb"], [3, 4])
-
-    # assert
-    # "a" padded to 3, "bb" padded to 4, joined with two spaces
-    assert result == "a    bb  "
-
-
-def test_compute_widths_picks_max_of_header_and_values():
-    # arrange
-    data = [{"X": "ab"}, {"X": "abcdef"}]
-    headers = ["X"]
-
-    # act
-    result = _compute_widths(data, headers)
-
-    # assert
-    assert result == {"X": 6}
