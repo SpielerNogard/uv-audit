@@ -1,0 +1,88 @@
+# .github/actions/report/action.yml
+name: uv-audit report
+description: Aggregate scan artifacts, write step summary, post or update the sticky PR comment.
+
+inputs:
+  artifacts_dir:
+    description: Directory containing downloaded scan-* artifact subdirectories
+    required: true
+  repo_root:
+    description: Absolute repository root for relativising file paths
+    required: true
+  ignore_vulns:
+    description: Newline-separated vulnerability IDs to suppress
+    required: false
+    default: ""
+  comment_on_pr:
+    description: Whether to create or update a sticky PR comment
+    required: false
+    default: "true"
+  github_token:
+    description: Token for the comment API
+    required: true
+  uv_audit_version:
+    description: Version of uv-audit2 to install from PyPI
+    required: true
+
+outputs:
+  vulnerable:
+    description: "'true' when non-ignored vulnerabilities were found"
+    value: ${{ steps.run.outputs.vulnerable }}
+  vuln_count:
+    description: Number of non-ignored findings
+    value: ${{ steps.run.outputs.vuln_count }}
+  ignored_count:
+    description: Number of ignored findings
+    value: ${{ steps.run.outputs.ignored_count }}
+  report_json:
+    description: Aggregated JSON report as a string
+    value: ${{ steps.run.outputs.report_json }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - uses: astral-sh/setup-uv@v3
+    - name: Install uv-audit (provides aggregate + render)
+      shell: bash
+      run: uv tool install "uv-audit2==${{ inputs.uv_audit_version }}"
+    - id: run
+      shell: bash
+      env:
+        IGNORE_VULNS: ${{ inputs.ignore_vulns }}
+      run: |
+        uv run --with "uv-audit2==${{ inputs.uv_audit_version }}" \
+          python "${{ github.action_path }}/report.py" \
+            --artifacts-dir "${{ inputs.artifacts_dir }}" \
+            --repo-root "${{ inputs.repo_root }}" \
+            --ignore-vulns "$IGNORE_VULNS"
+    - name: Post or update sticky PR comment
+      if: ${{ inputs.comment_on_pr == 'true' && github.event.pull_request != null }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const fs = require('fs');
+          const body = fs.readFileSync('comment.md', 'utf8');
+          const marker = '<!-- uv-audit-report -->';
+          const { owner, repo } = context.repo;
+          const issue_number = context.payload.pull_request.number;
+          const vulnerable = '${{ steps.run.outputs.vulnerable }}' === 'true';
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner, repo, issue_number, per_page: 100,
+          });
+          const existing = comments.find(c => c.body && c.body.startsWith(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner, repo, comment_id: existing.id, body,
+            });
+          } else if (vulnerable) {
+            await github.rest.issues.createComment({
+              owner, repo, issue_number, body,
+            });
+          }
+      continue-on-error: true
