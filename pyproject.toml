@@ -104,5 +104,5 @@ version_provider = "pep621"
 update_changelog_on_bump = true
 bump_message = "bump: $current_version → $new_version [skip-ci]"
 version_files = [
-    "uv_audit/__init__.py",
+    "src/uv_audit/__init__.py",
 ]

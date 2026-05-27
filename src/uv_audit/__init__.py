@@ -138,10 +138,10 @@ def cmd(
     all_vulns: list[dict] = []
     for path, kind in inputs:
         if not path.exists():
-            rprint(f"[red]Error: {path} does not exist.")
+            rprint(f"[red]Error: {path} does not exist.[/red]")
             continue
         if not path.is_file():
-            rprint(f"[red]Error: {path} is not a file.")
+            rprint(f"[red]Error: {path} is not a file.[/red]")
             continue
 
         if kind == "pyproject":
