@@ -10,7 +10,8 @@ if __name__ == "__main__":
     from uv_audit import main
 
     warnings.warn(
+        "This script is deprecated. Please use the 'uv-audit' command directly.",
         category=DeprecationWarning,
-        message="This script is deprecated. Please use the 'uv-audit' command directly.",
+        stacklevel=2,
     )
     main()

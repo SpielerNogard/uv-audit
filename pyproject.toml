@@ -18,10 +18,19 @@ dependencies = [
     "rich==14.1.0",
 ]
 
+[dependency-groups]
+dev = ["pytest==8.4.0", "pytest-cov==6.1.1", "pytest-mock==3.14.1"]
+dev-tools = ["ruff==0.15.8", "pyright==1.1.408"]
+linting = [{ include-group = "dev-tools" }, "commitizen==4.13.9"]
+mkdocs = ["mkdocs-material==9.7.0", "mkdocstrings[python]==0.29.1"]
+codequality = ["lizard==1.21.3"]
+sonar = ["pysonar==1.5.0.4793"]
+
 [project.scripts]
 uv-audit = "uv_audit:main"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 exclude = ["*.tests", "*.tests.*", "tests.*", "tests"]
 
 [tool.ruff]
@@ -32,14 +41,50 @@ target-version = "py313"
 [tool.ruff.lint]
 # for more rules: https://docs.astral.sh/ruff/rules/
 select = [
-    "A", # prevent using keywords that clobber python builtins
-    "E", # pycodestyle
-    "F", # pyflakes
-    "UP", # alert you when better syntax is available in your python version
-    "I", # isort
-    "N", # PEP8 naming
-    "W"   # Warnings
+  "A",     # flake8-builtins
+  "B",     # flake8-bugbear
+  "ASYNC", # flake8-async
+  "C4",    # flake8-comprehensions
+  "C90",   # mccabe complexity
+  "E",     # pycodestyle error
+  "F",     # pyflakes
+  "FAST",  # fastapi
+  "I",     # isort
+  "N",     # pep8-naming
+  "PERF",  # Perflint
+  "PIE",   # flake8-pie
+  "PLR",   # pylint refactor
+  "PT",    # flake8-pytest-style
+  "PYI",   # flake8-pyi
+  "RUF",   # ruff
+  "SIM",   # flake8-simplify
+  "UP",    # pyupgrade
+  "W",     # pycodestyle warnings
 ]
+ignore = [
+  "B904",   # raise-without-from-inside-except
+  "PIE790", # unnecessary-placeholder
+  "SIM102", # collapsible-if
+  "SIM117", # multiple-with-statements
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10 # ISO 25010 audit threshold: max 10 McCabe per unit
+
+[tool.ruff.lint.pylint]
+max-branches = 10
+max-statements = 30
+
+[tool.ruff.lint.per-file-ignores]
+# CLI entry point: typer forces many arguments and a single dispatch function
+"src/uv_audit/__init__.py" = ["PLR0913", "PLR0912", "PLR0915", "C901"]
+# Test files: long descriptive docstrings and assertion messages may exceed 88 chars
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bbase_iac"]
+force-wrap-aliases = true
+combine-as-imports = true
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.
@@ -52,3 +97,14 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 # Enable reformatting of code snippets in docstrings.
 docstring-code-format = true
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "semver"
+version_provider = "pep621"
+update_changelog_on_bump = true
+bump_message = "bump: $current_version → $new_version [skip-ci]"
+version_files = [
+    "src/uv_audit/__init__.py",
+]
