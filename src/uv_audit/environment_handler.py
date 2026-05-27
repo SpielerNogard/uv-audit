@@ -3,6 +3,8 @@ import shutil
 import subprocess
 import uuid
 
+from uv_audit.pyproject_handler import PyProjectSelection
+
 
 def parse_pip_list_to_requirements(pip_list_output):
     """Parst uv pip list Output zu package==version Format."""
@@ -61,6 +63,18 @@ class EnvironmentHandler:
         else:
             install_cmd = f"uv pip install {requirements_file} --python {self._folder}"
         result = self.run_command(install_cmd)
+        return result is not None
+
+    def install_pyproject(self, selection: PyProjectSelection) -> bool:
+        target_dir = selection.path.parent
+        target = str(target_dir)
+        if selection.extras:
+            target += f"[{','.join(selection.extras)}]"
+
+        parts = [f"uv pip install '{target}' --python {self._folder}"]
+        parts.extend(f"--group {selection.path}:{group}" for group in selection.groups)
+
+        result = self.run_command(" ".join(parts))
         return result is not None
 
     def delete_venv(self):
