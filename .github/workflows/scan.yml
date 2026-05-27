@@ -51,10 +51,12 @@ jobs:
     outputs:
       files: ${{ steps.d.outputs.files }}
       count: ${{ steps.d.outputs.count }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: d
-        uses: SpielerNogard/uv-audit/.github/actions/discover@${{ inputs.uv_audit_version }}
+        uses: SpielerNogard/uv-audit/.github/actions/discover@${{ inputs.uv_audit_version }} # zizmor: ignore[unpinned-uses]
         with:
           path: ${{ inputs.path }}
           include: ${{ inputs.include }}
@@ -66,6 +68,8 @@ jobs:
     needs: discover
     if: ${{ needs.discover.outputs.count != '0' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -73,7 +77,7 @@ jobs:
         file: ${{ fromJSON(needs.discover.outputs.files) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: SpielerNogard/uv-audit/.github/actions/scan-one@${{ inputs.uv_audit_version }}
+      - uses: SpielerNogard/uv-audit/.github/actions/scan-one@${{ inputs.uv_audit_version }} # zizmor: ignore[unpinned-uses]
         with:
           file: ${{ matrix.file.path }}
           kind: ${{ matrix.file.kind }}
@@ -96,7 +100,7 @@ jobs:
           path: artifacts
           pattern: uv-audit-scan-*
       - id: report
-        uses: SpielerNogard/uv-audit/.github/actions/report@${{ inputs.uv_audit_version }}
+        uses: SpielerNogard/uv-audit/.github/actions/report@${{ inputs.uv_audit_version }} # zizmor: ignore[unpinned-uses]
         with:
           artifacts_dir: artifacts
           repo_root: ${{ github.workspace }}
