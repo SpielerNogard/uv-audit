@@ -52,12 +52,33 @@ def test_handle_pyproject_skips_install_when_nothing_selected(
     env = env_cls.return_value
     env.list_packages.return_value = []
 
-    scanner_cls = mocker.patch("uv_audit.file_handler.VulnerabilityScanner")
-    scanner_cls.return_value.run_check.return_value = []
-
     # act
     vulns = handle_pyproject(selection)
 
     # assert
     env.install_pyproject.assert_not_called()
     assert vulns == []
+
+
+def test_handle_pyproject_installs_when_extras_only(
+    mocker: MockerFixture, tmp_path: Path
+):
+    # arrange
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\n")
+    selection = PyProjectSelection(
+        path=pyproject,
+        extras=["cli"],
+        groups=[],
+        has_main_deps=False,
+    )
+
+    env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
+    env = env_cls.return_value
+    env.list_packages.return_value = []
+
+    # act
+    handle_pyproject(selection)
+
+    # assert
+    env.install_pyproject.assert_called_once_with(selection)

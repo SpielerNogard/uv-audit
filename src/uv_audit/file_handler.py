@@ -8,7 +8,30 @@ from uv_audit.table_view import print_simple_table
 from uv_audit.vulnerability_scanner import VulnerabilityScanner
 
 
-def handle_file(file_path: str | Path, is_file: bool):
+def _report_vulns(results: list[dict]) -> list[dict]:
+    vulns = [
+        {
+            "Name": r["package"],
+            "Version": r["version"],
+            "ID": v["id"],
+            "Fix Versions": ", ".join(v.get("fixed_in", ["N/A"])),
+            "Link": v.get("link", "N/A"),
+        }
+        for r in results
+        for v in r["vulnerabilities"]
+    ]
+    if vulns:
+        package_count = len({v["Name"] for v in vulns})
+        rprint(
+            f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
+        )
+        print_simple_table(vulns)
+    else:
+        rprint("[green]No known vulnerabilities found")
+    return vulns
+
+
+def handle_file(file_path: str | Path, is_file: bool) -> list[dict]:
     env_handler = EnvironmentHandler()
     env_handler.create_venv()
     env_handler.install_requirements(requirements_file=str(file_path), is_file=is_file)
@@ -16,26 +39,7 @@ def handle_file(file_path: str | Path, is_file: bool):
     results = VulnerabilityScanner().run_check(requirements=requirements)
     env_handler.delete_venv()
 
-    vulns = [
-        {
-            "Name": result["package"],
-            "Version": result["version"],
-            "ID": vuln["id"],
-            "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
-            "Link": vuln.get("link", "N/A"),
-        }
-        for result in results
-        for vuln in result["vulnerabilities"]
-    ]
-    if vulns:
-        package_count = len({vuln["Name"] for vuln in vulns})
-        rprint(
-            f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
-        )
-        print_simple_table(vulns)
-        return vulns
-    rprint("[green]No known vulnerabilities found")
-    return vulns
+    return _report_vulns(results)
 
 
 def handle_pyproject(selection: PyProjectSelection) -> list[dict]:
@@ -55,23 +59,4 @@ def handle_pyproject(selection: PyProjectSelection) -> list[dict]:
 
     results = VulnerabilityScanner().run_check(requirements=requirements)
 
-    vulns = [
-        {
-            "Name": result["package"],
-            "Version": result["version"],
-            "ID": vuln["id"],
-            "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
-            "Link": vuln.get("link", "N/A"),
-        }
-        for result in results
-        for vuln in result["vulnerabilities"]
-    ]
-    if vulns:
-        package_count = len({vuln["Name"] for vuln in vulns})
-        rprint(
-            f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
-        )
-        print_simple_table(vulns)
-        return vulns
-    rprint("[green]No known vulnerabilities found")
-    return vulns
+    return _report_vulns(results)
