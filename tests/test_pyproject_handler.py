@@ -46,3 +46,5 @@ def test_resolve_selection_missing_main_deps(tmp_path: Path):
 
     # assert
     assert selection.has_main_deps is False
+    assert selection.extras == []
+    assert selection.groups == []
