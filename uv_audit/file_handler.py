@@ -13,21 +13,21 @@ def handle_file(file_path: str, is_file: bool):
     results = VulnerabilityScanner().run_check(requirements=requirements)
     env_handler.delete_venv()
 
-    vulns = []
-    for result in results:
-        for vuln in result["vulnerabilities"]:
-            vulns.append(
-                {
-                    "Name": result["package"],
-                    "Version": result["version"],
-                    "ID": vuln["id"],
-                    "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
-                    "Link": vuln.get("link", "N/A"),
-                }
-            )
+    vulns = [
+        {
+            "Name": result["package"],
+            "Version": result["version"],
+            "ID": vuln["id"],
+            "Fix Versions": ", ".join(vuln.get("fixed_in", ["N/A"])),
+            "Link": vuln.get("link", "N/A"),
+        }
+        for result in results
+        for vuln in result["vulnerabilities"]
+    ]
     if vulns:
+        package_count = len({vuln["Name"] for vuln in vulns})
         rprint(
-            f"[red]Found {len(vulns)} known vulnerabilities in {len(set([vuln['Name'] for vuln in vulns]))} packages"
+            f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
         )
         print_simple_table(vulns)
         return vulns

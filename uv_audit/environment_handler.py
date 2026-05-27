@@ -1,7 +1,7 @@
-import uuid
-import subprocess
 import os
 import shutil
+import subprocess
+import uuid
 
 
 def parse_pip_list_to_requirements(pip_list_output):
@@ -17,16 +17,14 @@ def parse_pip_list_to_requirements(pip_list_output):
         if not line:
             continue
 
-        if line.startswith("Package") or line.startswith("-"):
+        if line.startswith(("Package", "-")):
             data_started = True
             continue
 
         if data_started and line:
-            parts = line.split()
-            if len(parts) >= 2:
-                package = parts[0]
-                version = parts[1]
-                requirements.append(f"{package}=={version}")
+            match line.split():
+                case [package, version, *_]:
+                    requirements.append(f"{package}=={version}")
 
     return requirements
 
@@ -51,9 +49,7 @@ class EnvironmentHandler:
             shutil.rmtree(self._folder)
 
         result = self.run_command(f"uv venv {self._folder}")
-        if result is not None:
-            return True
-        return False
+        return result is not None
 
     def install_requirements(self, requirements_file: str, is_file: bool = True):
         if not os.path.exists(requirements_file):
@@ -65,10 +61,7 @@ class EnvironmentHandler:
         else:
             install_cmd = f"uv pip install {requirements_file} --python {self._folder}"
         result = self.run_command(install_cmd)
-
-        if result is not None:
-            return True
-        return False
+        return result is not None
 
     def delete_venv(self):
         if os.path.exists(self._folder):

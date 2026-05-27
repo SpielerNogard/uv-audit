@@ -20,12 +20,14 @@ def cmd(
     project: str | None = typer.Argument(
         None, help="optional argument (e.g. directory path)"
     ),
-    requirements_files: list[Path] = typer.Option(
-        [],
-        "-r",
-        "--requirement",
-        help="requirements file to audit (can be used multiple times: -r requirements.txt -r requirements-dev.txt)",
-    ),
+    requirements_files: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "-r",
+            "--requirement",
+            help="requirements.txt or pyproject.toml to audit (repeatable)",
+        ),
+    ] = None,
     version: Annotated[
         bool,
         typer.Option(
@@ -37,6 +39,8 @@ def cmd(
     if version:
         rprint(f"[bold]uv-audit {__version__}[/bold]")
         return
+
+    requirements_files = requirements_files or []
 
     if not requirements_files and not project:
         rprint("[red]Error: No requirements files or project directory provided.[/red]")

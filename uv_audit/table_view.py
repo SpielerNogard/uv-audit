@@ -1,37 +1,29 @@
-def print_simple_table(data, headers=None):
+def _compute_widths(data: list[dict], headers: list[str]) -> dict[str, int]:
+    widths = {header: len(str(header)) for header in headers}
+    for item in data:
+        for header in headers:
+            widths[header] = max(widths[header], len(str(item.get(header, ""))))
+    return widths
+
+
+def _format_row(values: list[str], widths: list[int]) -> str:
+    return "  ".join(
+        value.ljust(width) for value, width in zip(values, widths, strict=True)
+    )
+
+
+def print_simple_table(data: list[dict], headers: list[str] | None = None) -> None:
     if not data:
         print("Keine Daten vorhanden")
         return
 
     if headers is None:
-        headers = list(data[0].keys()) if data else []
+        headers = list(data[0].keys())
 
-    col_widths = {}
-    for header in headers:
-        col_widths[header] = len(str(header))
-        for item in data:
-            value = item.get(header, "")
-            col_widths[header] = max(col_widths[header], len(str(value)))
+    widths = _compute_widths(data, headers)
+    col_widths = [widths[h] for h in headers]
 
-    header_row = ""
-    for i, header in enumerate(headers):
-        if i > 0:
-            header_row += "  "
-        header_row += str(header).ljust(col_widths[header])
-    print(header_row)
-
-    separator = ""
-    for i, header in enumerate(headers):
-        if i > 0:
-            separator += "  "
-        separator += "-" * col_widths[header]
-    print(separator)
-
+    print(_format_row([str(h) for h in headers], col_widths))
+    print(_format_row(["-" * w for w in col_widths], col_widths))
     for item in data:
-        row = ""
-        for i, header in enumerate(headers):
-            if i > 0:
-                row += "  "
-            value = item.get(header, "")
-            row += str(value).ljust(col_widths[header])
-        print(row)
+        print(_format_row([str(item.get(h, "")) for h in headers], col_widths))
