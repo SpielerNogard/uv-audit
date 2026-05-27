@@ -22,12 +22,13 @@ def test_install_pyproject_builds_command_with_extras_and_groups(
     run = mocker.patch.object(handler, "run_command", return_value="ok")
 
     # act
-    handler.install_pyproject(selection)
+    result = handler.install_pyproject(selection)
 
     # assert
     run.assert_called_once()
     cmd = run.call_args.args[0]
-    assert f"'{tmp_path}[cli,ml]'" in cmd
+    assert result is True
+    assert f"{tmp_path}[cli,ml]" in cmd
     assert f"--group {pyproject}:dev" in cmd
     assert f"--group {pyproject}:test" in cmd
     assert f"--python {handler._folder}" in cmd
@@ -47,10 +48,12 @@ def test_install_pyproject_no_extras_no_groups(mocker: MockerFixture, tmp_path: 
     run = mocker.patch.object(handler, "run_command", return_value="ok")
 
     # act
-    handler.install_pyproject(selection)
+    result = handler.install_pyproject(selection)
 
     # assert
+    run.assert_called_once()
     cmd = run.call_args.args[0]
-    assert f"'{tmp_path}'" in cmd
+    assert result is True
+    assert f"uv pip install {tmp_path} " in cmd
     assert "[" not in cmd
     assert "--group" not in cmd

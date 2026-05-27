@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 import subprocess
 import uuid
@@ -71,7 +72,7 @@ class EnvironmentHandler:
         if selection.extras:
             target += f"[{','.join(selection.extras)}]"
 
-        parts = [f"uv pip install '{target}' --python {self._folder}"]
+        parts = [f"uv pip install {shlex.quote(target)} --python {self._folder}"]
         parts.extend(f"--group {selection.path}:{group}" for group in selection.groups)
 
         result = self.run_command(" ".join(parts))
