@@ -1,5 +1,6 @@
 """Tests for the handle_pyproject orchestration function, including skip-install and extras-only cases."""
 
+import pytest
 from pathlib import Path
 
 from pytest_mock import MockerFixture
@@ -87,3 +88,40 @@ def test_handle_pyproject_installs_when_extras_only(
 
     # assert
     env.install_pyproject.assert_called_once_with(selection)
+
+
+def test_handle_pyproject_quiet_suppresses_output(
+    mocker: MockerFixture, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    """Verify that handle_pyproject produces no output when quiet=True."""
+    # arrange
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\ndependencies=[]\n")
+    selection = PyProjectSelection(
+        path=pyproject,
+        extras=[],
+        groups=[],
+        has_main_deps=True,
+    )
+
+    env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
+    env = env_cls.return_value
+    env.list_packages.return_value = ["flask==1.1.2"]
+
+    scanner_cls = mocker.patch("uv_audit.file_handler.VulnerabilityScanner")
+    scanner_cls.return_value.run_check.return_value = [
+        {
+            "package": "flask",
+            "version": "1.1.2",
+            "vulnerabilities": [{"id": "GHSA-1", "fixed_in": ["2.0.0"], "link": "x"}],
+        }
+    ]
+
+    # act
+    vulns = handle_pyproject(selection, quiet=True)
+
+    # assert
+    captured = capsys.readouterr()
+    assert len(vulns) == 1
+    assert captured.out == ""
+    assert captured.err == ""

@@ -17,7 +17,7 @@ from uv_audit.table_view import print_simple_table
 from uv_audit.vulnerability_scanner import VulnerabilityScanner
 
 
-def _report_vulns(results: list[dict]) -> list[dict]:
+def _report_vulns(results: list[dict], quiet: bool = False) -> list[dict]:
     """Format and print vulnerability results, then return the flat vuln list.
 
     Iterates over the scanner results, flattens each package's vulnerability
@@ -32,6 +32,8 @@ def _report_vulns(results: list[dict]) -> list[dict]:
         :meth:`~uv_audit.vulnerability_scanner.VulnerabilityScanner.run_check`.
         Each dict has keys ``"package"``, ``"version"``, and
         ``"vulnerabilities"`` (a list of PyPI advisory dicts).
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
 
     Returns
     -------
@@ -51,18 +53,19 @@ def _report_vulns(results: list[dict]) -> list[dict]:
         for r in results
         for v in r["vulnerabilities"]
     ]
-    if vulns:
-        package_count = len({v["Name"] for v in vulns})
-        rprint(
-            f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
-        )
-        print_simple_table(vulns)
-    else:
-        rprint("[green]No known vulnerabilities found")
+    if not quiet:
+        if vulns:
+            package_count = len({v["Name"] for v in vulns})
+            rprint(
+                f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
+            )
+            print_simple_table(vulns)
+        else:
+            rprint("[green]No known vulnerabilities found")
     return vulns
 
 
-def handle_file(file_path: str | Path, is_file: bool) -> list[dict]:
+def handle_file(file_path: str | Path, is_file: bool, quiet: bool = False) -> list[dict]:
     """Audit a ``requirements.txt`` file for known vulnerabilities.
 
     Creates a temporary virtual environment, installs every package listed in
@@ -76,6 +79,8 @@ def handle_file(file_path: str | Path, is_file: bool) -> list[dict]:
         When ``True``, the path is treated as a ``-r`` requirements file.
         When ``False``, it is passed as a direct package specifier to ``uv
         pip install``.
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
 
     Returns
     -------
@@ -90,10 +95,10 @@ def handle_file(file_path: str | Path, is_file: bool) -> list[dict]:
     results = VulnerabilityScanner().run_check(requirements=requirements)
     env_handler.delete_venv()
 
-    return _report_vulns(results)
+    return _report_vulns(results, quiet=quiet)
 
 
-def handle_pyproject(selection: PyProjectSelection) -> list[dict]:
+def handle_pyproject(selection: PyProjectSelection, quiet: bool = False) -> list[dict]:
     """Audit a resolved ``pyproject.toml`` selection for known vulnerabilities.
 
     Creates a temporary virtual environment, installs the dependencies
@@ -105,6 +110,8 @@ def handle_pyproject(selection: PyProjectSelection) -> list[dict]:
     selection : PyProjectSelection
         Resolved dependency selection produced by
         :func:`~uv_audit.pyproject_handler.resolve_selection`.
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
 
     Returns
     -------
@@ -124,9 +131,10 @@ def handle_pyproject(selection: PyProjectSelection) -> list[dict]:
     env_handler.delete_venv()
 
     if not requirements:
-        rprint("[yellow]No installable dependencies found in pyproject.toml")
+        if not quiet:
+            rprint("[yellow]No installable dependencies found in pyproject.toml")
         return []
 
     results = VulnerabilityScanner().run_check(requirements=requirements)
 
-    return _report_vulns(results)
+    return _report_vulns(results, quiet=quiet)

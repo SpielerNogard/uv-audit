@@ -47,3 +47,26 @@ def test_report_vulns_prints_no_vulnerabilities_when_empty(
     captured = capsys.readouterr()
     assert vulns == []
     assert "No known vulnerabilities found" in captured.out
+
+
+def test_report_vulns_quiet_suppresses_output(capsys: pytest.CaptureFixture[str]):
+    """Verify _report_vulns produces no output when quiet=True, even with vulnerabilities."""
+    # arrange
+    results = [
+        {
+            "package": "flask",
+            "version": "1.1.2",
+            "vulnerabilities": [
+                {"id": "GHSA-XYZ", "fixed_in": ["2.0.0"], "link": "https://example.com"}
+            ],
+        }
+    ]
+
+    # act
+    vulns = _report_vulns(results, quiet=True)
+
+    # assert
+    captured = capsys.readouterr()
+    assert len(vulns) == 1
+    assert captured.out == ""
+    assert captured.err == ""
