@@ -8,6 +8,7 @@ command.
 
 __version__ = "0.1.0"
 
+import json
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -54,7 +55,10 @@ def _is_pyproject(path: Path) -> bool:
 
 
 def _warn_selection_flags(
-    selection_flags_set: bool, has_requirements: bool, has_pyproject: bool
+    selection_flags_set: bool,
+    has_requirements: bool,
+    has_pyproject: bool,
+    quiet: bool = False,
 ) -> None:
     """Emit a warning when group/extra flags are used with incompatible inputs.
 
@@ -71,8 +75,10 @@ def _warn_selection_flags(
         Whether at least one plain ``requirements.txt`` input is present.
     has_pyproject : bool
         Whether at least one ``pyproject.toml`` input is present.
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
     """
-    if not selection_flags_set or not has_requirements:
+    if not selection_flags_set or not has_requirements or quiet:
         return
     if not has_pyproject:
         rprint(
@@ -92,7 +98,8 @@ def _process_pyproject(
     groups: list[str],
     all_extras: bool,
     all_groups: bool,
-) -> list[dict]:
+    quiet: bool = False,
+) -> tuple[list[dict], PyProjectSelection | None]:
     """Resolve a ``pyproject.toml`` selection and run a vulnerability scan.
 
     Calls :func:`~uv_audit.pyproject_handler.resolve_selection` to determine
@@ -112,11 +119,14 @@ def _process_pyproject(
         When ``True``, include every declared optional-dependency extra.
     all_groups : bool
         When ``True``, include every declared dependency group.
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
 
     Returns
     -------
-    list[dict]
-        Vulnerability records returned by the scan (empty list when none found).
+    tuple[list[dict], PyProjectSelection | None]
+        A pair of the vulnerability records and the resolved selection.
+        On unknown-extra/group errors, exits with code 1 instead of returning.
 
     Raises
     ------
@@ -132,17 +142,20 @@ def _process_pyproject(
             all_groups=all_groups,
         )
     except (UnknownExtraError, UnknownGroupError) as exc:
-        rprint(f"[red]Error: {exc}[/red]")
+        if quiet:
+            print(f"Error: {exc}", file=sys.stderr)
+        else:
+            rprint(f"[red]Error: {exc}[/red]")
         raise typer.Exit(code=1) from exc
     no_deps = (
         not selection.has_main_deps and not selection.extras and not selection.groups
     )
-    if no_deps:
+    if no_deps and not quiet:
         rprint(
             f"[yellow]Warning: {path} has no [project.dependencies] and "
             f"no extras/groups selected.[/yellow]"
         )
-    return handle_pyproject(selection)
+    return handle_pyproject(selection, quiet=quiet), selection
 
 
 @app.command()
@@ -181,6 +194,10 @@ def cmd(
         bool,
         typer.Option(help="Print version", show_default=False),
     ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit results as JSON to stdout"),
+    ] = False,
 ):
     """Audit Python dependencies for known vulnerabilities.
 
@@ -208,7 +225,11 @@ def cmd(
         all_extras = True
 
     if not requirements_files and not project:
-        rprint("[red]Error: No requirements files or project directory provided.[/red]")
+        msg = "Error: No requirements files or project directory provided."
+        if json_output:
+            print(msg, file=sys.stderr)
+        else:
+            rprint(f"[red]{msg}[/red]")
         raise typer.Exit(code=1)
 
     inputs: list[tuple[Path, str]] = []
@@ -221,22 +242,77 @@ def cmd(
     has_pyproject = any(kind == "pyproject" for _, kind in inputs)
     has_requirements = any(kind == "requirements" for _, kind in inputs)
     selection_flags_set = bool(groups or extras or all_groups or all_extras)
-    _warn_selection_flags(selection_flags_set, has_requirements, has_pyproject)
+    _warn_selection_flags(
+        selection_flags_set, has_requirements, has_pyproject, quiet=json_output
+    )
 
     all_vulns: list[dict] = []
+    json_inputs: list[dict] = []
+
     for path, kind in inputs:
         if not path.exists():
-            rprint(f"[red]Error: {path} does not exist.[/red]")
+            if json_output:
+                print(f"Error: {path} does not exist.", file=sys.stderr)
+            else:
+                rprint(f"[red]Error: {path} does not exist.[/red]")
             continue
         if not path.is_file():
-            rprint(f"[red]Error: {path} is not a file.[/red]")
+            if json_output:
+                print(f"Error: {path} is not a file.", file=sys.stderr)
+            else:
+                rprint(f"[red]Error: {path} is not a file.[/red]")
             continue
 
         if kind == "pyproject":
-            vulns = _process_pyproject(path, extras, groups, all_extras, all_groups)
+            vulns, selection = _process_pyproject(
+                path, extras, groups, all_extras, all_groups, quiet=json_output
+            )
+            if json_output:
+                resolved_groups = selection.groups if selection else []
+                resolved_extras = selection.extras if selection else []
+            else:
+                resolved_groups = []
+                resolved_extras = []
         else:
-            vulns = handle_file(file_path=path, is_file=True)
+            vulns = handle_file(file_path=path, is_file=True, quiet=json_output)
+            resolved_groups = []
+            resolved_extras = []
+
         all_vulns.extend(vulns)
+
+        if json_output:
+            json_inputs.append(
+                {
+                    "source": str(path.resolve()),
+                    "kind": kind,
+                    "groups": resolved_groups,
+                    "extras": resolved_extras,
+                    "vulnerabilities": [
+                        {
+                            "package": v["Name"],
+                            "version": v["Version"],
+                            "id": v["ID"],
+                            "fix_versions": [
+                                s.strip()
+                                for s in v["Fix Versions"].split(",")
+                                if s.strip()
+                            ],
+                            "link": v["Link"],
+                        }
+                        for v in vulns
+                    ],
+                }
+            )
+
+    if json_output:
+        payload = {
+            "vulnerable": any(entry["vulnerabilities"] for entry in json_inputs),
+            "inputs": json_inputs,
+        }
+        print(json.dumps(payload, indent=2))
+        if payload["vulnerable"]:
+            sys.exit(1)
+        return
 
     if all_vulns:
         sys.exit("Vulnerabilites found")

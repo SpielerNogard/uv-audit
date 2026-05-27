@@ -1,8 +1,8 @@
 """Tests for the handle_pyproject orchestration function, including skip-install and extras-only cases."""
 
-import pytest
 from pathlib import Path
 
+import pytest
 from pytest_mock import MockerFixture
 
 from uv_audit.file_handler import handle_pyproject

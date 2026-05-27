@@ -57,7 +57,8 @@ def _report_vulns(results: list[dict], quiet: bool = False) -> list[dict]:
         if vulns:
             package_count = len({v["Name"] for v in vulns})
             rprint(
-                f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
+                f"[red]Found {len(vulns)} known vulnerabilities "
+                f"in {package_count} packages"
             )
             print_simple_table(vulns)
         else:
@@ -65,7 +66,9 @@ def _report_vulns(results: list[dict], quiet: bool = False) -> list[dict]:
     return vulns
 
 
-def handle_file(file_path: str | Path, is_file: bool, quiet: bool = False) -> list[dict]:
+def handle_file(
+    file_path: str | Path, is_file: bool, quiet: bool = False
+) -> list[dict]:
     """Audit a ``requirements.txt`` file for known vulnerabilities.
 
     Creates a temporary virtual environment, installs every package listed in

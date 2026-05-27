@@ -22,7 +22,7 @@ def test_cli_all_flag_implies_all_groups_and_all_extras(
     )
     captured = {}
 
-    def fake_handle(selection):
+    def fake_handle(selection, quiet: bool = False):
         captured["selection"] = selection
         return []
 
