@@ -73,7 +73,10 @@ class EnvironmentHandler:
             target += f"[{','.join(selection.extras)}]"
 
         parts = [f"uv pip install {shlex.quote(target)} --python {self._folder}"]
-        parts.extend(f"--group {selection.path}:{group}" for group in selection.groups)
+        parts.extend(
+            f"--group {shlex.quote(f'{selection.path}:{group}')}"
+            for group in selection.groups
+        )
 
         result = self.run_command(" ".join(parts))
         return result is not None
