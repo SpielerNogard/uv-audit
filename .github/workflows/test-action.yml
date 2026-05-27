@@ -14,7 +14,7 @@ jobs:
   clean:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: a
         uses: ./
         with:
@@ -22,14 +22,18 @@ jobs:
           fail_on_vuln: "true"
           comment_on_pr: "false"
           uv_audit_source: ${{ github.workspace }}
-      - run: |
-          test "${{ steps.a.outputs.vulnerable }}" = "false"
-          test "${{ steps.a.outputs.vuln_count }}" = "0"
+      - name: Check outputs
+        env:
+          VULNERABLE: ${{ steps.a.outputs.vulnerable }}
+          VULN_COUNT: ${{ steps.a.outputs.vuln_count }}
+        run: |
+          test "$VULNERABLE" = "false"
+          test "$VULN_COUNT" = "0"
 
   vulnerable_fails:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: a
         continue-on-error: true
         uses: ./
@@ -39,18 +43,22 @@ jobs:
           comment_on_pr: "false"
           uv_audit_source: ${{ github.workspace }}
       - name: Action must have failed
-        run: test "${{ steps.a.outcome }}" = "failure"
+        env:
+          OUTCOME: ${{ steps.a.outcome }}
+        run: test "$OUTCOME" = "failure"
       - name: Output must report vulnerable
-        run: test "${{ steps.a.outputs.vulnerable }}" = "true"
+        env:
+          VULNERABLE: ${{ steps.a.outputs.vulnerable }}
+        run: test "$VULNERABLE" = "true"
 
   ignored_passes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.13'
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6.10.0
       - name: Discover advisory ID for flask 1.1.2
         id: ids
         run: |
@@ -67,8 +75,10 @@ jobs:
           fail_on_vuln: "true"
           comment_on_pr: "false"
           uv_audit_source: ${{ github.workspace }}
-      - run: |
-          test "${{ steps.a.outputs.ignored_count }}" != "0"
+      - name: Check ignored count
+        env:
+          IGNORED_COUNT: ${{ steps.a.outputs.ignored_count }}
+        run: test "$IGNORED_COUNT" != "0"
 
   monorepo_via_composite:
     # The reusable workflow references its helper actions via the namespaced
@@ -78,7 +88,7 @@ jobs:
     # logic of scan.yml is exercised by consumers post-release.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: a
         continue-on-error: true
         uses: ./
@@ -87,6 +97,10 @@ jobs:
           fail_on_vuln: "false"
           comment_on_pr: "false"
           uv_audit_source: ${{ github.workspace }}
-      - run: |
-          test "${{ steps.a.outputs.vulnerable }}" = "true"
-          test "${{ steps.a.outputs.vuln_count }}" != "0"
+      - name: Check monorepo outputs
+        env:
+          VULNERABLE: ${{ steps.a.outputs.vulnerable }}
+          VULN_COUNT: ${{ steps.a.outputs.vuln_count }}
+        run: |
+          test "$VULNERABLE" = "true"
+          test "$VULN_COUNT" != "0"

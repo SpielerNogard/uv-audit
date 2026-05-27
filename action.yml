@@ -137,6 +137,8 @@ runs:
     - name: Fail when vulnerabilities present
       if: ${{ inputs.fail_on_vuln == 'true' && steps.report.outputs.vulnerable == 'true' }}
       shell: bash
+      env:
+        VULN_COUNT: ${{ steps.report.outputs.vuln_count }}
       run: |
-        echo "::error::uv-audit found ${{ steps.report.outputs.vuln_count }} non-ignored vulnerabilities"
+        echo "::error::uv-audit found $VULN_COUNT non-ignored vulnerabilities"
         exit 1
