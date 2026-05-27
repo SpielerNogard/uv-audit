@@ -1,0 +1,84 @@
+# .github/workflows/test-action.yml
+name: test-action
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: a
+        uses: ./
+        with:
+          path: tests/fixtures/repos/clean
+          fail_on_vuln: "true"
+          comment_on_pr: "false"
+      - run: |
+          test "${{ steps.a.outputs.vulnerable }}" = "false"
+          test "${{ steps.a.outputs.vuln_count }}" = "0"
+
+  vulnerable_fails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: a
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/repos/vulnerable
+          fail_on_vuln: "true"
+          comment_on_pr: "false"
+      - name: Action must have failed
+        run: test "${{ steps.a.outcome }}" = "failure"
+      - name: Output must report vulnerable
+        run: test "${{ steps.a.outputs.vulnerable }}" = "true"
+
+  ignored_passes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover advisory ID for flask 1.1.2
+        id: ids
+        run: |
+          uv tool install "uv-audit2"
+          uv-audit --json -r tests/fixtures/repos/ignored/requirements.txt > out.json || true
+          # Take the first vuln id; allows the test to track upstream changes.
+          first_id=$(python -c "import json; d=json.load(open('out.json')); print(d['inputs'][0]['vulnerabilities'][0]['id'])")
+          echo "first_id=$first_id" >> "$GITHUB_OUTPUT"
+      - id: a
+        uses: ./
+        with:
+          path: tests/fixtures/repos/ignored
+          ignore_vulns: ${{ steps.ids.outputs.first_id }}
+          fail_on_vuln: "true"
+          comment_on_pr: "false"
+      - run: |
+          test "${{ steps.a.outputs.ignored_count }}" != "0"
+
+  monorepo_via_composite:
+    # The reusable workflow references its helper actions via the namespaced
+    # tag form (`SpielerNogard/uv-audit/.github/actions/...@<version>`), which
+    # cannot resolve before the first release. We therefore self-test the
+    # monorepo path through the composite action instead. The matrix-fan-out
+    # logic of scan.yml is exercised by consumers post-release.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: a
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/repos/monorepo
+          fail_on_vuln: "false"
+          comment_on_pr: "false"
+      - run: |
+          test "${{ steps.a.outputs.vulnerable }}" = "true"
+          test "${{ steps.a.outputs.vuln_count }}" != "0"
