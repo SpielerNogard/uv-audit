@@ -222,6 +222,15 @@ uv-audit -r pyproject.toml --all --json | jq -r '.inputs[].vulnerabilities[].id'
 
 ## Install as a uv tool
 
-1. Install: `uv tool install git+https://github.com/SpielerNogard/uv-audit.git@main`
-2. Run: `uv tool run uv-audit -r requirements.txt` or `uv audit -r requirements.txt`
+From PyPI (package name is `uv-audit2`, CLI command stays `uv-audit`):
+```
+uv tool install uv-audit2
+uv-audit -r requirements.txt
+```
+
+Or directly from git:
+```
+uv tool install git+https://github.com/SpielerNogard/uv-audit.git@main
+uv tool run uv-audit -r requirements.txt
+```
 
