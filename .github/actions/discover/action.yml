@@ -65,6 +65,7 @@ runs:
         UV_AUDIT_INCLUDE: ${{ inputs.include }}
         UV_AUDIT_EXCLUDE: ${{ inputs.exclude }}
         UV_AUDIT_PATH: ${{ inputs.path }}
+        PREFIX: ${{ inputs.path }}
       run: |
         set -euo pipefail
         include_args=()
@@ -79,6 +80,15 @@ runs:
         done <<< "$UV_AUDIT_EXCLUDE"
 
         uv-audit --discover --json "${include_args[@]}" "${exclude_args[@]}" "$UV_AUDIT_PATH" > discover.json
+        python -c "
+        import json, os
+        prefix = os.environ['PREFIX'].rstrip('/')
+        data = json.load(open('discover.json'))
+        if prefix and prefix != '.':
+            for entry in data['files']:
+                entry['path'] = f\"{prefix}/{entry['path']}\"
+        json.dump(data, open('discover.json', 'w'))
+        "
         files=$(python -c 'import json,sys; print(json.dumps(json.load(open("discover.json"))["files"]))')
         count=$(python -c 'import json; print(len(json.load(open("discover.json"))["files"]))')
         echo "files=$files" >> "$GITHUB_OUTPUT"
