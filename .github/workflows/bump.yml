@@ -12,11 +12,12 @@ jobs:
     name: "Bump version and create changelog with commitizen"
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           fetch-depth: 0
+          persist-credentials: false
       - name: Create bump and changelog
-        uses: commitizen-tools/commitizen-action@master
+        uses: commitizen-tools/commitizen-action@338bbd841b75aaee6bf5340e1fa12f6ab58ff9ff  # master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
