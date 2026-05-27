@@ -34,7 +34,7 @@ on:
         default: "--all"
       uv_audit_version:
         type: string
-        default: "0.2.0"
+        default: "0.2.0"  # x-cz-version
       comment_on_pr:
         type: boolean
         default: true

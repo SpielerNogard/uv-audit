@@ -43,7 +43,7 @@ inputs:
   uv_audit_version:
     description: Version of uv-audit2 to install from PyPI (kept in sync via commitizen)
     required: false
-    default: "0.2.0"
+    default: "0.2.0"  # x-cz-version
   comment_on_pr:
     description: Create or update the sticky PR comment when running in PR context
     required: false

@@ -107,6 +107,6 @@ update_changelog_on_bump = true
 bump_message = "bump: $current_version → $new_version [skip-ci]"
 version_files = [
     "src/uv_audit/__init__.py",
-    "action.yml:uv_audit_version:[\\s\\S]*?default: \"\\d+\\.\\d+\\.\\d+\"",
-    ".github/workflows/scan.yml:uv_audit_version:[\\s\\S]*?default: \"\\d+\\.\\d+\\.\\d+\"",
+    "action.yml:default: \"\\d+\\.\\d+\\.\\d+\"  # x-cz-version",
+    ".github/workflows/scan.yml:default: \"\\d+\\.\\d+\\.\\d+\"  # x-cz-version",
 ]
