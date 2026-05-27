@@ -110,6 +110,7 @@ def test_resolve_selection_explicit_group(tmp_path: Path):
 
     # assert
     assert selection.groups == ["dev"]
+    assert selection.extras == []
 
 
 def test_resolve_selection_unknown_extra_raises(tmp_path: Path):

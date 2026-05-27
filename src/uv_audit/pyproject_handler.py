@@ -19,14 +19,13 @@ class PyProjectSelection:
     has_main_deps: bool
 
 
-def _validate(name: str, available: list[str], kind: str) -> None:
+def _validate(
+    name: str, available: list[str], kind: str, exc_cls: type[Exception]
+) -> None:
     if name in available:
         return
     available_str = ", ".join(sorted(available)) or "<none>"
-    message = f"Unknown {kind} '{name}'. Available {kind}s: {available_str}"
-    if kind == "extra":
-        raise UnknownExtraError(message)
-    raise UnknownGroupError(message)
+    raise exc_cls(f"Unknown {kind} '{name}'. Available {kind}s: {available_str}")
 
 
 def resolve_selection(
@@ -46,9 +45,9 @@ def resolve_selection(
     available_groups = list(data.get("dependency-groups", {}).keys())
 
     for extra in extras:
-        _validate(extra, available_extras, "extra")
+        _validate(extra, available_extras, "extra", UnknownExtraError)
     for group in groups:
-        _validate(group, available_groups, "group")
+        _validate(group, available_groups, "group", UnknownGroupError)
 
     return PyProjectSelection(
         path=path,
