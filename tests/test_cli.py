@@ -3,7 +3,8 @@ from pathlib import Path
 from pytest_mock import MockerFixture
 from typer.testing import CliRunner
 
-from uv_audit import app
+import uv_audit
+from uv_audit import __version__, app, main
 
 runner = CliRunner()
 
@@ -155,3 +156,80 @@ def test_cli_mixed_inputs_warns_and_dispatches_both(
     handle_py.assert_called_once()
     handle_file_fn.assert_called_once()
     assert "apply only to pyproject.toml" in result.output.lower()
+
+
+def test_cli_version_flag_prints_version():
+    # act
+    result = runner.invoke(app, ["--version"])
+
+    # assert
+    assert result.exit_code == 0
+    assert __version__ in result.output
+
+
+def test_cli_no_inputs_exits_with_error():
+    # act
+    result = runner.invoke(app, ["--all"])
+
+    # assert
+    assert result.exit_code == 1
+    assert "No requirements files or project directory provided" in result.output
+
+
+def test_cli_nonexistent_file_path_emits_error_and_continues(
+    mocker: MockerFixture,
+):
+    # arrange
+    mocker.patch("uv_audit.handle_file", return_value=[])
+    mocker.patch("uv_audit.handle_pyproject", return_value=[])
+
+    # act
+    result = runner.invoke(app, ["-r", "/tmp/definitely-does-not-exist-12345.txt"])
+
+    # assert
+    assert "does not exist" in result.output
+    uv_audit.handle_file.assert_not_called()
+    uv_audit.handle_pyproject.assert_not_called()
+
+
+def test_cli_directory_path_as_dash_r_emits_not_a_file_error(
+    mocker: MockerFixture, tmp_path: Path
+):
+    # arrange
+    mocker.patch("uv_audit.handle_file", return_value=[])
+    mocker.patch("uv_audit.handle_pyproject", return_value=[])
+
+    # act
+    result = runner.invoke(app, ["-r", str(tmp_path)])
+
+    # assert
+    assert "is not a file" in result.output
+
+
+def test_cli_exits_with_message_when_vulns_found(mocker: MockerFixture, tmp_path: Path):
+    # arrange
+    req = tmp_path / "requirements.txt"
+    req.write_text("flask==1.1.2\n")
+    mocker.patch(
+        "uv_audit.handle_file",
+        return_value=[{"Name": "flask", "Version": "1.1.2", "ID": "GHSA-1"}],
+    )
+    mocker.patch("uv_audit.handle_pyproject", return_value=[])
+
+    # act
+    result = runner.invoke(app, ["-r", str(req)])
+
+    # assert
+    assert result.exit_code != 0
+    assert "Vulnerabilites found" in result.output
+
+
+def test_main_function_invokes_app(mocker: MockerFixture):
+    # arrange
+    mock_app = mocker.patch("uv_audit.app")
+
+    # act
+    main()
+
+    # assert
+    mock_app.assert_called_once()

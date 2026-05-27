@@ -73,10 +73,7 @@ def test_install_pyproject_no_extras_no_groups(mocker: MockerFixture, tmp_path: 
 def test_parse_pip_list_to_requirements_typical_output():
     # arrange
     pip_list_output = (
-        "Package    Version\n"
-        "---------- -------\n"
-        "click      8.2.1\n"
-        "requests   2.32.3\n"
+        "Package    Version\n---------- -------\nclick      8.2.1\nrequests   2.32.3\n"
     )
 
     # act
@@ -243,9 +240,7 @@ def test_install_requirements_is_file_false(mocker: MockerFixture):
     result = handler.install_requirements("/some/path", is_file=False)
 
     # assert
-    run.assert_called_once_with(
-        f"uv pip install /some/path --python {handler._folder}"
-    )
+    run.assert_called_once_with(f"uv pip install /some/path --python {handler._folder}")
     assert result is True
 
 
@@ -303,10 +298,7 @@ def test_list_packages_returns_parsed_packages(mocker: MockerFixture):
     # arrange
     handler = EnvironmentHandler()
     pip_output = (
-        "Package    Version\n"
-        "---------- -------\n"
-        "click      8.2.1\n"
-        "requests   2.32.3\n"
+        "Package    Version\n---------- -------\nclick      8.2.1\nrequests   2.32.3\n"
     )
     mocker.patch.object(handler, "run_command", return_value=pip_output)
 
