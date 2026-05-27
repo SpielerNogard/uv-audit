@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from rich import print as rprint
 
 from uv_audit.environment_handler import EnvironmentHandler
@@ -5,10 +7,10 @@ from uv_audit.table_view import print_simple_table
 from uv_audit.vulnerability_scanner import VulnerabilityScanner
 
 
-def handle_file(file_path: str, is_file: bool):
+def handle_file(file_path: str | Path, is_file: bool):
     env_handler = EnvironmentHandler()
     env_handler.create_venv()
-    env_handler.install_requirements(requirements_file=file_path, is_file=is_file)
+    env_handler.install_requirements(requirements_file=str(file_path), is_file=is_file)
     requirements = env_handler.list_packages()
     results = VulnerabilityScanner().run_check(requirements=requirements)
     env_handler.delete_venv()
