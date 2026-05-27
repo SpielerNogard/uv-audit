@@ -168,7 +168,60 @@ Mix files in one run:
 uv-audit -r requirements.txt -r ./svc/pyproject.toml --all-groups
 ```
 
-Or directly with uv tool:
+## Machine-readable output
+
+Use `--json` to emit results as JSON on stdout (errors go to stderr). The
+payload lists every scanned input — including clean ones — along with the
+resolved groups/extras selection.
+
+```
+uv-audit -r pyproject.toml --all --json
+```
+
+Example output:
+```json
+{
+  "vulnerable": true,
+  "inputs": [
+    {
+      "source": "/abs/path/to/pyproject.toml",
+      "kind": "pyproject",
+      "groups": ["dev"],
+      "extras": ["cli"],
+      "vulnerabilities": [
+        {
+          "package": "flask",
+          "version": "1.1.2",
+          "id": "GHSA-XYZ",
+          "fix_versions": ["2.0.0"],
+          "link": "https://example.com"
+        }
+      ]
+    },
+    {
+      "source": "/abs/path/to/requirements.txt",
+      "kind": "requirements",
+      "groups": [],
+      "extras": [],
+      "vulnerabilities": []
+    }
+  ]
+}
+```
+
+For requirements files the `groups` and `extras` arrays are always empty so
+the shape is identical across input kinds. Exit code is non-zero when any
+vulnerability is found.
+
+Quick recipes with `jq`:
+```
+uv-audit -r pyproject.toml --all --json | jq '.vulnerable'
+uv-audit -r pyproject.toml --all --json | jq '.inputs[] | select(.vulnerabilities | length > 0)'
+uv-audit -r pyproject.toml --all --json | jq -r '.inputs[].vulnerabilities[].id'
+```
+
+## Install as a uv tool
+
 1. Install: `uv tool install git+https://github.com/SpielerNogard/uv-audit.git@main`
 2. Run: `uv tool run uv-audit -r requirements.txt` or `uv audit -r requirements.txt`
 
