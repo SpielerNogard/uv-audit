@@ -1,0 +1,106 @@
+# .github/workflows/scan.yml
+name: uv-audit scan
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        type: string
+        default: "."
+      include:
+        type: string
+        default: |
+          **/pyproject.toml
+          **/requirements*.txt
+      exclude:
+        type: string
+        default: |
+          .venv
+          venv
+          .tox
+          node_modules
+          .git
+          dist
+          build
+          site-packages
+      ignore_vulns:
+        type: string
+        default: ""
+      fail_on_vuln:
+        type: boolean
+        default: true
+      pyproject_args:
+        type: string
+        default: "--all"
+      uv_audit_version:
+        type: string
+        default: "0.2.0"
+      comment_on_pr:
+        type: boolean
+        default: true
+    secrets:
+      github_token:
+        required: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.d.outputs.files }}
+      count: ${{ steps.d.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: d
+        uses: SpielerNogard/uv-audit/.github/actions/discover@${{ inputs.uv_audit_version }}
+        with:
+          path: ${{ inputs.path }}
+          include: ${{ inputs.include }}
+          exclude: ${{ inputs.exclude }}
+          uv_audit_version: ${{ inputs.uv_audit_version }}
+
+  scan:
+    needs: discover
+    if: ${{ needs.discover.outputs.count != '0' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        file: ${{ fromJSON(needs.discover.outputs.files) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: SpielerNogard/uv-audit/.github/actions/scan-one@${{ inputs.uv_audit_version }}
+        with:
+          file: ${{ matrix.file.path }}
+          kind: ${{ matrix.file.kind }}
+          pyproject_args: ${{ inputs.pyproject_args }}
+          artifact_name: ${{ strategy.job-index }}
+          uv_audit_version: ${{ inputs.uv_audit_version }}
+
+  report:
+    needs: [discover, scan]
+    if: ${{ always() && needs.discover.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: uv-audit-scan-*
+      - id: report
+        uses: SpielerNogard/uv-audit/.github/actions/report@${{ inputs.uv_audit_version }}
+        with:
+          artifacts_dir: artifacts
+          repo_root: ${{ github.workspace }}
+          ignore_vulns: ${{ inputs.ignore_vulns }}
+          comment_on_pr: ${{ inputs.comment_on_pr }}
+          github_token: ${{ secrets.github_token || github.token }}
+          uv_audit_version: ${{ inputs.uv_audit_version }}
+      - name: Fail when vulnerabilities present
+        if: ${{ inputs.fail_on_vuln && steps.report.outputs.vulnerable == 'true' }}
+        run: |
+          echo "::error::uv-audit found ${{ steps.report.outputs.vuln_count }} non-ignored vulnerabilities"
+          exit 1
