@@ -79,7 +79,7 @@ max-statements = 30
 # CLI entry point: typer forces many arguments and a single dispatch function
 "src/uv_audit/__init__.py" = ["PLR0913", "PLR0912", "PLR0915", "C901"]
 # Test files: long descriptive docstrings and assertion messages may exceed 88 chars
-"tests/**/*.py" = ["E501"]
+"tests/**/*.py" = ["E501", "PLR2004"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bbase_iac"]
