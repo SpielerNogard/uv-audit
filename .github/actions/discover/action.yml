@@ -1,0 +1,72 @@
+# .github/actions/discover/action.yml
+name: uv-audit discover
+description: Discover Python dependency files matching include/exclude patterns.
+
+inputs:
+  path:
+    description: Root directory for discovery
+    required: false
+    default: "."
+  include:
+    description: Newline-separated glob patterns
+    required: false
+    default: |
+      **/pyproject.toml
+      **/requirements*.txt
+  exclude:
+    description: Newline-separated path components or globs to skip
+    required: false
+    default: |
+      .venv
+      venv
+      .tox
+      node_modules
+      .git
+      dist
+      build
+      site-packages
+  uv_audit_version:
+    description: Version of uv-audit2 to install from PyPI
+    required: true
+
+outputs:
+  files:
+    description: JSON array of {path, kind} entries (compact, single-line)
+    value: ${{ steps.run.outputs.files }}
+  count:
+    description: Number of discovered files
+    value: ${{ steps.run.outputs.count }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - uses: astral-sh/setup-uv@v3
+    - name: Install uv-audit
+      shell: bash
+      run: uv tool install "uv-audit2==${{ inputs.uv_audit_version }}"
+    - id: run
+      shell: bash
+      env:
+        UV_AUDIT_INCLUDE: ${{ inputs.include }}
+        UV_AUDIT_EXCLUDE: ${{ inputs.exclude }}
+      run: |
+        set -euo pipefail
+        include_args=()
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          include_args+=(--include "$line")
+        done <<< "$UV_AUDIT_INCLUDE"
+        exclude_args=()
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          exclude_args+=(--exclude "$line")
+        done <<< "$UV_AUDIT_EXCLUDE"
+
+        uv-audit --discover --json "${include_args[@]}" "${exclude_args[@]}" "${{ inputs.path }}" > discover.json
+        files=$(python -c 'import json,sys; print(json.dumps(json.load(open("discover.json"))["files"]))')
+        count=$(python -c 'import json; print(len(json.load(open("discover.json"))["files"]))')
+        echo "files=$files" >> "$GITHUB_OUTPUT"
+        echo "count=$count" >> "$GITHUB_OUTPUT"
