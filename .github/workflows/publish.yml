@@ -1,17 +1,14 @@
 name: Publish Python 🐍 distribution 📦 to PyPI
 
 on:
-  workflow_run:  # zizmor: ignore[dangerous-triggers]
-    workflows:
-      - Bump version
-    types:
-      - completed
+  push:
+    tags:
+      - "*"
 
 permissions: {}
 
 jobs:
   build:
-    if: "startsWith(github.event.head_commit.message, 'bump:')"
     name: Build distribution 📦
     runs-on: ubuntu-latest
     permissions:
