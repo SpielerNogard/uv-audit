@@ -77,9 +77,10 @@ def render_markdown(aggregated: dict, uv_audit_version: str) -> str:
         f"**{aggregated['vuln_count']} vulnerabilities** · "
         f"**{aggregated['ignored_count']} ignored**",
         "",
-        "⚠️ Files with findings: " + ", ".join(files_with),
-        "",
     ]
+    if files_with:
+        parts.append("⚠️ Files with findings: " + ", ".join(files_with))
+        parts.append("")
     for entry in aggregated["inputs"]:
         section = _render_file_section(entry)
         if section:
