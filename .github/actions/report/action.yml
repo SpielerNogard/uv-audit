@@ -83,6 +83,8 @@ runs:
     - name: Post or update sticky PR comment
       if: ${{ inputs.comment_on_pr == 'true' && github.event.pull_request != null }}
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      env:
+        VULNERABLE: ${{ steps.run.outputs.vulnerable }}
       with:
         github-token: ${{ inputs.github_token }}
         script: |
@@ -91,7 +93,7 @@ runs:
           const marker = '<!-- uv-audit-report -->';
           const { owner, repo } = context.repo;
           const issue_number = context.payload.pull_request.number;
-          const vulnerable = '${{ steps.run.outputs.vulnerable }}' === 'true';
+          const vulnerable = process.env.VULNERABLE === 'true';
 
           const { data: comments } = await github.rest.issues.listComments({
             owner, repo, issue_number, per_page: 100,

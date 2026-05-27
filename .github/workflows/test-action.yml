@@ -83,7 +83,10 @@ jobs:
         with:
           path: tests/fixtures/repos/ignored
           ignore_vulns: ${{ steps.ids.outputs.first_id }}
-          fail_on_vuln: "true"
+          # flask 1.1.2 has multiple CVEs; ignoring only the first leaves
+          # others non-ignored. This test specifically verifies ignored_count,
+          # not the fail behaviour — disable fail_on_vuln here.
+          fail_on_vuln: "false"
           comment_on_pr: "false"
           uv_audit_source: ${{ github.workspace }}
       - name: Check ignored count
