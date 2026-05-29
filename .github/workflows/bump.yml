@@ -24,3 +24,6 @@ jobs:
         uses: commitizen-tools/commitizen-action@338bbd841b75aaee6bf5340e1fa12f6ab58ff9ff  # master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          push: false
+      - name: Push bump commit and tag via SSH remote
+        run: git push --follow-tags origin HEAD:main
