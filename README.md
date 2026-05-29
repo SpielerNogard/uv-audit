@@ -234,3 +234,80 @@ uv tool install git+https://github.com/SpielerNogard/uv-audit.git@main
 uv tool run uv-audit -r requirements.txt
 ```
 
+## GitHub Action
+
+`uv-audit` is also packaged as a reusable GitHub Action. The action discovers
+`pyproject.toml` and `requirements*.txt` files in your repo, scans each for
+known vulnerabilities, posts a sticky comment on the PR with findings, and
+fails the build (configurable) when non-ignored vulnerabilities are present.
+
+### Quick start (single job)
+
+```yaml
+name: audit
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: SpielerNogard/uv-audit@0.2.0
+        with:
+          ignore_vulns: |
+            PYSEC-2026-161
+```
+
+### Monorepo (parallel scanning across files)
+
+```yaml
+name: audit
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  audit:
+    uses: SpielerNogard/uv-audit/.github/workflows/scan.yml@0.2.0
+    with:
+      ignore_vulns: |
+        PYSEC-2026-161
+```
+
+### Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `path` | `.` | Root directory for discovery |
+| `include` | `**/pyproject.toml`, `**/requirements*.txt` | Newline-separated glob patterns |
+| `exclude` | `.venv`, `venv`, `.tox`, `node_modules`, `.git`, `dist`, `build`, `site-packages` | Path components or globs to skip |
+| `ignore_vulns` | _(empty)_ | Vulnerability IDs to suppress |
+| `fail_on_vuln` | `true` | Exit non-zero when non-ignored vulns are found |
+| `pyproject_args` | `--all` | Extra CLI args for pyproject scans |
+| `uv_audit_version` | _matches action tag_ | Version of `uv-audit2` installed from PyPI |
+| `comment_on_pr` | `true` | Create/update the sticky PR comment |
+| `github_token` | `${{ github.token }}` | Token used for the comment API |
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `vulnerable` | `'true'` or `'false'` |
+| `vuln_count` | Number of non-ignored findings |
+| `ignored_count` | Number of ignored findings |
+| `report_json` | Aggregated JSON report |
+
+### Private indexes
+
+Composite actions inherit `env:` from the caller; pass any `UV_*` / `PIP_*`
+environment variable to authenticate against private PyPI mirrors:
+
+```yaml
+- uses: SpielerNogard/uv-audit@0.2.0
+  env:
+    UV_INDEX_URL: https://pypi.example.com/simple
+    UV_INDEX_USERNAME: ${{ secrets.PYPI_USER }}
+    UV_INDEX_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+```

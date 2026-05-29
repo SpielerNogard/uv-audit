@@ -1,0 +1,81 @@
+name: uv-audit scan-one
+description: Run uv-audit --json on a single dependency file and upload the result as an artifact.
+
+inputs:
+  file:
+    description: Relative path to the file to scan
+    required: true
+  kind:
+    description: Either 'pyproject' or 'requirements'
+    required: true
+  pyproject_args:
+    description: Extra CLI args appended for pyproject scans (e.g. --all)
+    required: false
+    default: "--all"
+  artifact_name:
+    description: Suffix for the uploaded artifact name (must be unique per matrix entry)
+    required: true
+  uv_audit_version:
+    description: Version of uv-audit2 to install from PyPI
+    required: true
+  uv_audit_source:
+    description: "Optional installable source for uv-audit (path or VCS URL); when set, overrides uv_audit_version"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.13'
+    - uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6.10.0
+    - name: Install uv-audit
+      shell: bash
+      env:
+        UV_AUDIT_SOURCE: ${{ inputs.uv_audit_source }}
+        UV_AUDIT_VERSION: ${{ inputs.uv_audit_version }}
+      run: |
+        if [ -n "$UV_AUDIT_SOURCE" ]; then
+          uv tool install "$UV_AUDIT_SOURCE"
+        else
+          uv tool install "uv-audit2==$UV_AUDIT_VERSION"
+        fi
+    - name: Scan
+      shell: bash
+      env:
+        FILE: ${{ inputs.file }}
+        KIND: ${{ inputs.kind }}
+        PYPROJECT_ARGS: ${{ inputs.pyproject_args }}
+      run: |
+        set -euo pipefail
+        extra=()
+        if [ "$KIND" = "pyproject" ]; then
+          # shellcheck disable=SC2206
+          extra=($PYPROJECT_ARGS)
+        fi
+        mkdir -p scan-output
+        # uv-audit exits 1 when vulnerabilities are found — that is expected.
+        # We want to upload the JSON either way, so capture and re-evaluate later.
+        set +e
+        uv-audit --json -r "$FILE" "${extra[@]}" > scan-output/scan.json
+        rc=$?
+        set -e
+        if [ $rc -ne 0 ] && [ $rc -ne 1 ]; then
+          # rc != 0 and != 1 means uv-audit itself crashed — record the failure.
+          FILE="$FILE" KIND="$KIND" RC="$rc" python -c "
+        import json, os
+        json.dump(
+          {'inputs': [{'source': os.environ['FILE'],
+                       'kind': os.environ['KIND'],
+                       'groups': [], 'extras': [],
+                       'error': f\"uv-audit exited with code {os.environ['RC']}\"}],
+           'vulnerable': False},
+          open('scan-output/scan.json','w'))
+        "
+        fi
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: uv-audit-scan-${{ inputs.artifact_name }}
+        path: scan-output/scan.json
+        if-no-files-found: error

@@ -1,241 +1,32 @@
-name: Check Requirements for vulnerabilities using uv-audit
+name: uv-audit
 
 on:
   pull_request:
 
 permissions:
   contents: read
-  id-token: write
   pull-requests: write
 
 jobs:
-  security-audit:
+  audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
-
-      - name: Install uv-audit
-        run: |
-          uv tool install  git+https://github.com/SpielerNogard/uv-audit.git@${GITHUB_HEAD_REF}
-
-      - name: Run uv-audit on project level
-        id: project-audit
-        run: |
-          echo "## 🔍 Project-Level Security Audit" > audit_results.md
-          echo "" >> audit_results.md
-
-          # Check if there's a main requirements file in root
-          if [ -f "requirements.txt" ]; then
-            echo "### Root requirements.txt" >> audit_results.md
-            echo "" >> audit_results.md
-            echo "\`\`\`" >> audit_results.md
-
-            if uv-audit -r requirements.txt > temp_project.txt 2>&1; then
-              cat temp_project.txt >> audit_results.md
-              echo "" >> audit_results.md
-              echo "✅ No vulnerabilities found in root requirements.txt" >> audit_results.md
-            else
-              cat temp_project.txt >> audit_results.md
-              echo "" >> audit_results.md
-              echo "❌ Vulnerabilities found in root requirements.txt" >> audit_results.md
-            fi
-
-            echo "\`\`\`" >> audit_results.md
-            echo "" >> audit_results.md
-            rm -f temp_project.txt
-          fi
-
-          # Check pyproject.toml if exists
-          if [ -f "pyproject.toml" ]; then
-            echo "### Root pyproject.toml" >> audit_results.md
-            echo "" >> audit_results.md
-            echo "\`\`\`" >> audit_results.md
-
-            if uv-audit . > temp_pyproject.txt 2>&1; then
-              cat temp_pyproject.txt >> audit_results.md
-              echo "" >> audit_results.md
-              echo "✅ No vulnerabilities found in project dependencies" >> audit_results.md
-            else
-              cat temp_pyproject.txt >> audit_results.md
-              echo "" >> audit_results.md
-              echo "❌ Vulnerabilities found in project dependencies" >> audit_results.md
-            fi
-
-            echo "\`\`\`" >> audit_results.md
-            echo "" >> audit_results.md
-            rm -f temp_pyproject.txt
-          fi
-        continue-on-error: true
-
-      - name: Run uv-audit on all requirements files
-        id: requirements-audit
-        run: |
-          echo "" >> audit_results.md
-          echo "## 📁 Individual Requirements Files Audit" >> audit_results.md
-          echo "" >> audit_results.md
-
-          # Find all requirements files, exclude our temporary file, and save to temp file
-          find . -name "requirements*.txt" -type f ! -name "requirements_list_paths.txt" | sort > requirements_list_paths.txt
-
-          if [ ! -s requirements_list_paths.txt ]; then
-            echo "ℹ️ No requirements files found in subdirectories" >> audit_results.md
-          else
-            {
-              echo "### 📋 Found Requirements Files"
-              echo ""
-              echo "<details>"
-              echo "<summary>Click to expand file list</summary>"
-              echo ""
-              echo "\`\`\`"
-            } >> audit_results.md
-
-            while IFS= read -r file; do
-              echo "- $file" >> audit_results.md
-            done < requirements_list_paths.txt
-
-            {
-              echo "\`\`\`"
-              echo "</details>"
-              echo ""
-            } >> audit_results.md
-
-            # Audit each file
-            while IFS= read -r file; do
-              echo "Processing: $file"
-
-              # Skip if file doesn't exist or is empty
-              if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-                {
-                  echo "### 📄 \`$file\`"
-                  echo ""
-                  echo "⚠️ File is empty or does not exist - skipping"
-                  echo ""
-                } >> audit_results.md
-                continue
-              fi
-
-              # Run uv-audit and capture output
-              if uv-audit -r "$file" > temp_result.txt 2>&1; then
-                if grep -q "No known vulnerabilities found" temp_result.txt || grep -q "Found 0 known vulnerabilities" temp_result.txt; then
-                  echo "" >> audit_results.md
-                fi
-              else
-                {
-                  echo "### 📄 \`$file\`"
-                  echo ""
-                  echo "<details>"
-                  echo "<summary>❌ Issues found - Click to expand results</summary>"
-                  echo ""
-                  echo "\`\`\`"
-                } >> audit_results.md
-
-                cat temp_result.txt >> audit_results.md
-                echo "" >> audit_results.md
-
-                {
-                  echo "\`\`\`"
-                  echo "</details>"
-                  echo ""
-                } >> audit_results.md
-              fi
-
-              rm -f temp_result.txt
-            done < requirements_list_paths.txt
-          fi
-
-          # Cleanup
-          rm -f requirements_list_paths.txt
-        continue-on-error: true
-
-      - name: Generate summary
-        run: |
-          echo "" >> audit_results.md
-          echo "## 📊 Summary" >> audit_results.md
-          echo "" >> audit_results.md
-
-          # Count files checked (exclude our temporary file)
-          req_count=$(find . -name "requirements*.txt" -type f ! -name "requirements_list_paths.txt" | wc -l)
-          echo "- **Requirements files checked:** $req_count" >> audit_results.md
-
-          # Add timestamp
-          echo "- **Scan completed:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> audit_results.md
-          echo "- **uv-audit version:** $(uv-audit --version)" >> audit_results.md
-
-          echo "" >> audit_results.md
-          echo "---" >> audit_results.md
-          echo "*This security audit was automatically generated by GitHub Actions*" >> audit_results.md
-
-      - name: Comment PR with results
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
-        if: github.event_name == 'pull_request'
+      - uses: ./
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-
-            // Read the audit results
-            let auditResults = '';
-            try {
-              auditResults = fs.readFileSync('audit_results.md', 'utf8');
-            } catch (error) {
-              auditResults = '❌ Could not read audit results file';
-            }
-
-            // Get existing comments
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            // Find existing audit comment
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('🔍 Project-Level Security Audit')
-            );
-
-            const commentBody = `# 🛡️ Security Audit Results
-
-            ${auditResults}`;
-
-            if (botComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: commentBody
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: commentBody
-              });
-            }
-
-      - name: Upload audit results as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        if: always()
-        with:
-          name: uv-audit-results
-          path: audit_results.md
-          retention-days: 30
-
-      - name: Check if vulnerabilities were found
-        run: |
-          if grep -q "❌" audit_results.md; then
-            echo "::warning::Security vulnerabilities were found. Please review the audit results."
-            # Uncomment the line below if you want the action to fail when vulnerabilities are found
-            # exit 1
-          else
-            echo "::notice::No security vulnerabilities found in the audit."
-          fi
+          uv_audit_source: ${{ github.workspace }}
+          exclude: |
+            .venv
+            venv
+            .tox
+            node_modules
+            .git
+            dist
+            build
+            site-packages
+            tests/fixtures
+          ignore_vulns: |
+            PYSEC-2026-161
+          fail_on_vuln: "false"

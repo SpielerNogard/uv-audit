@@ -1,0 +1,144 @@
+# action.yml
+name: uv-audit
+description: Scan Python dependency files for known vulnerabilities and report findings on PRs.
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Root directory for discovery
+    required: false
+    default: "."
+  include:
+    description: Newline-separated glob patterns to match
+    required: false
+    default: |
+      **/pyproject.toml
+      **/requirements*.txt
+  exclude:
+    description: Newline-separated path components or globs to skip
+    required: false
+    default: |
+      .venv
+      venv
+      .tox
+      node_modules
+      .git
+      dist
+      build
+      site-packages
+  ignore_vulns:
+    description: Newline-separated vulnerability IDs to suppress
+    required: false
+    default: ""
+  fail_on_vuln:
+    description: Exit non-zero when non-ignored vulnerabilities are found
+    required: false
+    default: "true"
+  pyproject_args:
+    description: Extra CLI args appended to uv-audit for pyproject scans
+    required: false
+    default: "--all"
+  uv_audit_version:
+    description: Version of uv-audit2 to install from PyPI (kept in sync via commitizen)
+    required: false
+    default: "0.2.0"  # x-cz-version
+  uv_audit_source:
+    description: "Optional installable source for uv-audit (path or VCS URL); when set, overrides uv_audit_version"
+    required: false
+    default: ""
+  comment_on_pr:
+    description: Create or update the sticky PR comment when running in PR context
+    required: false
+    default: "true"
+  github_token:
+    description: Token used for the comment API
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  vulnerable:
+    description: "'true' when non-ignored vulnerabilities were found"
+    value: ${{ steps.report.outputs.vulnerable }}
+  vuln_count:
+    description: Number of non-ignored findings
+    value: ${{ steps.report.outputs.vuln_count }}
+  ignored_count:
+    description: Number of ignored findings
+    value: ${{ steps.report.outputs.ignored_count }}
+  report_json:
+    description: Aggregated JSON report as a string
+    value: ${{ steps.report.outputs.report_json }}
+
+runs:
+  using: composite
+  steps:
+    - id: discover
+      uses: ./.github/actions/discover
+      with:
+        path: ${{ inputs.path }}
+        include: ${{ inputs.include }}
+        exclude: ${{ inputs.exclude }}
+        uv_audit_version: ${{ inputs.uv_audit_version }}
+        uv_audit_source: ${{ inputs.uv_audit_source }}
+    - name: Scan each file
+      if: ${{ steps.discover.outputs.count != '0' }}
+      shell: bash
+      env:
+        FILES_JSON: ${{ steps.discover.outputs.files }}
+        PYPROJECT_ARGS: ${{ inputs.pyproject_args }}
+      run: |
+        set -euo pipefail
+        mkdir -p artifacts
+        idx=0
+        # Use process substitution — a piped `while` runs in a subshell and
+        # would discard idx increments, causing all scans to overwrite scan-0.
+        while IFS=$'\t' read -r file kind; do
+          mkdir -p "artifacts/scan-$idx"
+          extra=()
+          if [ "$kind" = "pyproject" ]; then
+            # shellcheck disable=SC2206
+            extra=($PYPROJECT_ARGS)
+          fi
+          set +e
+          uv-audit --json -r "$file" "${extra[@]}" > "artifacts/scan-$idx/scan.json"
+          rc=$?
+          set -e
+          if [ $rc -ne 0 ] && [ $rc -ne 1 ]; then
+            FILE="$file" KIND="$kind" RC="$rc" SCAN_PATH="artifacts/scan-$idx/scan.json" \
+              python -c "
+        import json, os
+        json.dump(
+          {'inputs': [{'source': os.path.abspath(os.environ['FILE']),
+                       'kind': os.environ['KIND'],
+                       'groups': [], 'extras': [],
+                       'error': f\"uv-audit exit {os.environ['RC']}\"}],
+           'vulnerable': False},
+          open(os.environ['SCAN_PATH'], 'w'))
+        "
+          fi
+          idx=$((idx + 1))
+        done < <(echo "$FILES_JSON" | python -c '
+        import json, sys
+        for entry in json.load(sys.stdin):
+            print(entry["path"] + "\t" + entry["kind"])
+        ')
+    - id: report
+      uses: ./.github/actions/report
+      with:
+        artifacts_dir: artifacts
+        repo_root: ${{ github.workspace }}
+        ignore_vulns: ${{ inputs.ignore_vulns }}
+        comment_on_pr: ${{ inputs.comment_on_pr }}
+        github_token: ${{ inputs.github_token }}
+        uv_audit_version: ${{ inputs.uv_audit_version }}
+        uv_audit_source: ${{ inputs.uv_audit_source }}
+    - name: Fail when vulnerabilities present
+      if: ${{ inputs.fail_on_vuln == 'true' && steps.report.outputs.vulnerable == 'true' }}
+      shell: bash
+      env:
+        VULN_COUNT: ${{ steps.report.outputs.vuln_count }}
+      run: |
+        echo "::error::uv-audit found $VULN_COUNT non-ignored vulnerabilities"
+        exit 1

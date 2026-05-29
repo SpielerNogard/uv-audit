@@ -1,0 +1,125 @@
+# .github/workflows/scan.yml
+name: uv-audit scan
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        type: string
+        default: "."
+      include:
+        type: string
+        default: |
+          **/pyproject.toml
+          **/requirements*.txt
+      exclude:
+        type: string
+        default: |
+          .venv
+          venv
+          .tox
+          node_modules
+          .git
+          dist
+          build
+          site-packages
+      ignore_vulns:
+        type: string
+        default: ""
+      fail_on_vuln:
+        type: boolean
+        default: true
+      pyproject_args:
+        type: string
+        default: "--all"
+      uv_audit_version:
+        type: string
+        default: "0.2.0"  # x-cz-version
+      uv_audit_source:
+        type: string
+        default: ""
+      comment_on_pr:
+        type: boolean
+        default: true
+    secrets:
+      github_token:
+        required: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.d.outputs.files }}
+      count: ${{ steps.d.outputs.count }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - id: d
+        uses: SpielerNogard/uv-audit/.github/actions/discover@${{ inputs.uv_audit_version }} # zizmor: ignore[unpinned-uses]
+        with:
+          path: ${{ inputs.path }}
+          include: ${{ inputs.include }}
+          exclude: ${{ inputs.exclude }}
+          uv_audit_version: ${{ inputs.uv_audit_version }}
+          uv_audit_source: ${{ inputs.uv_audit_source }}
+
+  scan:
+    needs: discover
+    if: ${{ needs.discover.outputs.count != '0' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        file: ${{ fromJSON(needs.discover.outputs.files) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: SpielerNogard/uv-audit/.github/actions/scan-one@${{ inputs.uv_audit_version }} # zizmor: ignore[unpinned-uses]
+        with:
+          file: ${{ matrix.file.path }}
+          kind: ${{ matrix.file.kind }}
+          pyproject_args: ${{ inputs.pyproject_args }}
+          artifact_name: ${{ strategy.job-index }}
+          uv_audit_version: ${{ inputs.uv_audit_version }}
+          uv_audit_source: ${{ inputs.uv_audit_source }}
+
+  report:
+    needs: [discover, scan]
+    if: ${{ always() && needs.discover.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          pattern: uv-audit-scan-*
+      - id: report
+        uses: SpielerNogard/uv-audit/.github/actions/report@${{ inputs.uv_audit_version }} # zizmor: ignore[unpinned-uses]
+        with:
+          artifacts_dir: artifacts
+          repo_root: ${{ github.workspace }}
+          ignore_vulns: ${{ inputs.ignore_vulns }}
+          comment_on_pr: ${{ inputs.comment_on_pr }}
+          github_token: ${{ secrets.github_token || github.token }}
+          uv_audit_version: ${{ inputs.uv_audit_version }}
+          uv_audit_source: ${{ inputs.uv_audit_source }}
+      - name: Fail when vulnerabilities present
+        if: ${{ inputs.fail_on_vuln && steps.report.outputs.vulnerable == 'true' }}
+        shell: bash
+        env:
+          VULN_COUNT: ${{ steps.report.outputs.vuln_count }}
+        run: |
+          echo "::error::uv-audit found $VULN_COUNT non-ignored vulnerabilities"
+          exit 1
