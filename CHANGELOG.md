@@ -1,3 +1,14 @@
+## 0.3.0 (2026-05-29)
+
+### Feat
+
+- **ci**: drop reusable workflow, revert bump infra to default token (#7)
+- distribute uv-audit as a GitHub Action with sticky PR comments (#5)
+
+### Fix
+
+- **ci**: repair scan.yml workflow and switch bump to SSH deploy key (#6)
+
 ## 0.2.0 (2026-05-27)
 
 ### Feat
