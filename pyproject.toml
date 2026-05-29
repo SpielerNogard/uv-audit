@@ -109,4 +109,5 @@ version_files = [
     "src/uv_audit/__init__.py",
     "action.yml:default: \"\\d+\\.\\d+\\.\\d+\"  # x-cz-version",
     ".github/workflows/scan.yml:default: \"\\d+\\.\\d+\\.\\d+\"  # x-cz-version",
+    ".github/workflows/scan.yml:@\\d+\\.\\d+\\.\\d+ # x-cz-version",
 ]
