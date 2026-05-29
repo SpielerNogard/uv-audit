@@ -22,7 +22,7 @@ def _render_file_section(entry: dict) -> str:
     rows = "\n".join(
         f"| {v['package']} | {v['version']} | {v['id']} | "
         f"{', '.join(v['fix_versions']) or '—'} | "
-        f"[link]({v['link']}) |"
+        f"{'[link](' + v['link'] + ')' if v.get('link') else '—'} |"
         for v in visible
     )
     return (
@@ -50,6 +50,19 @@ def _render_ignored_section(aggregated: dict) -> str:
         f"<details>\n"
         f"<summary>🔇 <strong>Ignored ({len(rows)})</strong></summary>\n\n"
         + "\n".join(rows)
+        + "\n\n</details>"
+    )
+
+
+def _render_scan_errors_section(aggregated: dict) -> str:
+    errors = aggregated.get("scan_errors", [])
+    if not errors:
+        return ""
+    rows = "\n".join(f"- `{e['source']}`: {e['error']}" for e in errors)
+    return (
+        f"<details>\n"
+        f"<summary>⚠️ <strong>Scan failures ({len(errors)})</strong></summary>\n\n"
+        + rows
         + "\n\n</details>"
     )
 
@@ -89,6 +102,11 @@ def render_markdown(aggregated: dict, uv_audit_version: str) -> str:
     ignored = _render_ignored_section(aggregated)
     if ignored:
         parts.append(ignored)
+        parts.append("")
+
+    scan_errors = _render_scan_errors_section(aggregated)
+    if scan_errors:
+        parts.append(scan_errors)
         parts.append("")
 
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
