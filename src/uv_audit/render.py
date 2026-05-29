@@ -54,6 +54,37 @@ def _render_ignored_section(aggregated: dict) -> str:
     )
 
 
+def _scanned_file_row(entry: dict) -> str:
+    if entry.get("error"):
+        icon, suffix = "❌", " — scan error"
+    else:
+        visible = sum(1 for v in entry["vulnerabilities"] if not v["ignored"])
+        ignored = sum(1 for v in entry["vulnerabilities"] if v["ignored"])
+        if visible:
+            icon = "⚠️"
+            suffix = f" — {visible} vulnerabilit{'y' if visible == 1 else 'ies'}"
+        elif ignored:
+            icon = "🔇"
+            suffix = f" — {ignored} ignored"
+        else:
+            icon, suffix = "✅", ""
+    return f"- {icon} `{entry['source']}` ({entry['kind']}){suffix}"
+
+
+def _render_scanned_files_section(aggregated: dict) -> str:
+    inputs = aggregated.get("inputs") or []
+    if not inputs:
+        return ""
+    rows = "\n".join(_scanned_file_row(e) for e in inputs)
+    n = len(inputs)
+    return (
+        f"<details>\n"
+        f"<summary>📋 <strong>Scanned files ({n})</strong></summary>\n\n"
+        + rows
+        + "\n\n</details>"
+    )
+
+
 def _render_scan_errors_section(aggregated: dict) -> str:
     errors = aggregated.get("scan_errors", [])
     if not errors:
@@ -74,7 +105,16 @@ def render_markdown(aggregated: dict, uv_audit_version: str) -> str:
     full vulnerability layout with collapsible per-file sections.
     """
     if not aggregated["vulnerable"]:
-        return render_clean(aggregated["scanned_files"])
+        inputs = aggregated.get("inputs") or []
+        if not inputs:
+            return render_clean(aggregated["scanned_files"])
+        body = (
+            f"{MARKER}\n"
+            f"✅ **uv-audit:** No vulnerabilities found in "
+            f"{aggregated['scanned_files']} file(s).\n\n"
+            f"{_render_scanned_files_section(aggregated)}"
+        )
+        return body
 
     files_with = [
         f"`{e['source']}` ({sum(1 for v in e['vulnerabilities'] if not v['ignored'])})"
@@ -107,6 +147,11 @@ def render_markdown(aggregated: dict, uv_audit_version: str) -> str:
     scan_errors = _render_scan_errors_section(aggregated)
     if scan_errors:
         parts.append(scan_errors)
+        parts.append("")
+
+    scanned = _render_scanned_files_section(aggregated)
+    if scanned:
+        parts.append(scanned)
         parts.append("")
 
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

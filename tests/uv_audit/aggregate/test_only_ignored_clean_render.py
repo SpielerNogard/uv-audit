@@ -36,4 +36,5 @@ def test_all_findings_ignored_yields_clean_render():
     # assert
     assert aggregated["vulnerable"] is False
     assert "✅" in body
-    assert "<details>" not in body
+    assert "No vulnerabilities found" in body
+    assert "## 🔍 uv-audit" not in body
