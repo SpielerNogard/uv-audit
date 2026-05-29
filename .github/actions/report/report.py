@@ -31,7 +31,19 @@ def _load_per_file(artifacts_dir: Path) -> list[dict]:
         try:
             payloads.append(json.loads(scan_file.read_text()))
         except json.JSONDecodeError as exc:
-            print(f"::warning::Could not parse {scan_file}: {exc}", file=sys.stderr)
+            print(
+                f"::error::Could not parse {scan_file}: {exc}", file=sys.stderr
+            )
+            payloads.append({
+                "vulnerable": False,
+                "inputs": [{
+                    "source": str(scan_file),
+                    "kind": "unknown",
+                    "groups": [],
+                    "extras": [],
+                    "error": f"could not parse scan.json: {exc}",
+                }],
+            })
     return payloads
 
 
@@ -112,6 +124,10 @@ def main() -> int:
             f"::notice::{len(aggregated['dead_ignores'])} ignore_vulns entries "
             f"no longer match — consider removing: {ids}"
         )
+
+    if aggregated.get("scan_errors"):
+        for se in aggregated["scan_errors"]:
+            print(f"::warning::Scan failed for {se['source']}: {se['error']}")
 
     _emit_output("vulnerable", "true" if aggregated["vulnerable"] else "false")
     _emit_output("vuln_count", str(aggregated["vuln_count"]))
