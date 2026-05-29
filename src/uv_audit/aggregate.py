@@ -30,6 +30,7 @@ def aggregate(per_file: list[dict], ignore_vulns: list[str], repo_root: str) -> 
     ignore_set = set(ignore_vulns)
     seen_ignored: set[str] = set()
     all_inputs: list[dict] = []
+    scan_errors: list[dict] = []
     vuln_count = 0
     ignored_count = 0
     root = Path(repo_root)
@@ -43,7 +44,7 @@ def aggregate(per_file: list[dict], ignore_vulns: list[str], repo_root: str) -> 
                 src_rel = entry["source"]
 
             vulns_out = []
-            for v in entry["vulnerabilities"]:
+            for v in entry.get("vulnerabilities", []):
                 ignored = v["id"] in ignore_set
                 if ignored:
                     ignored_count += 1
@@ -52,15 +53,17 @@ def aggregate(per_file: list[dict], ignore_vulns: list[str], repo_root: str) -> 
                     vuln_count += 1
                 vulns_out.append({**v, "ignored": ignored})
 
-            all_inputs.append(
-                {
-                    "source": src_rel,
-                    "kind": entry["kind"],
-                    "groups": entry.get("groups", []),
-                    "extras": entry.get("extras", []),
-                    "vulnerabilities": vulns_out,
-                }
-            )
+            aggregated_entry: dict = {
+                "source": src_rel,
+                "kind": entry["kind"],
+                "groups": entry.get("groups", []),
+                "extras": entry.get("extras", []),
+                "vulnerabilities": vulns_out,
+            }
+            if "error" in entry:
+                aggregated_entry["error"] = entry["error"]
+                scan_errors.append({"source": src_rel, "error": entry["error"]})
+            all_inputs.append(aggregated_entry)
 
     return {
         "vulnerable": vuln_count > 0,
@@ -70,4 +73,5 @@ def aggregate(per_file: list[dict], ignore_vulns: list[str], repo_root: str) -> 
         "ignored_ids": sorted(seen_ignored),
         "inputs": all_inputs,
         "dead_ignores": sorted(ignore_set - seen_ignored),
+        "scan_errors": scan_errors,
     }
