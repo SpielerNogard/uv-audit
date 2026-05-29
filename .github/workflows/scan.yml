@@ -58,7 +58,7 @@ jobs:
         with:
           persist-credentials: false
       - id: d
-        uses: SpielerNogard/uv-audit/.github/actions/discover@0.2.0 # x-cz-version zizmor: ignore[unpinned-uses]
+        uses: SpielerNogard/uv-audit/.github/actions/discover@0.2.0 # zizmor: ignore[unpinned-uses]
         with:
           path: ${{ inputs.path }}
           include: ${{ inputs.include }}
@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: SpielerNogard/uv-audit/.github/actions/scan-one@0.2.0 # x-cz-version zizmor: ignore[unpinned-uses]
+      - uses: SpielerNogard/uv-audit/.github/actions/scan-one@0.2.0 # zizmor: ignore[unpinned-uses]
         with:
           file: ${{ matrix.file.path }}
           kind: ${{ matrix.file.kind }}
@@ -106,7 +106,7 @@ jobs:
           path: artifacts
           pattern: uv-audit-scan-*
       - id: report
-        uses: SpielerNogard/uv-audit/.github/actions/report@0.2.0 # x-cz-version zizmor: ignore[unpinned-uses]
+        uses: SpielerNogard/uv-audit/.github/actions/report@0.2.0 # zizmor: ignore[unpinned-uses]
         with:
           artifacts_dir: artifacts
           repo_root: ${{ github.workspace }}
