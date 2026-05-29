@@ -1,3 +1,9 @@
+## 0.3.1 (2026-05-29)
+
+### Fix
+
+- **ci**: use BUMP_TOKEN PAT so tag-push triggers publish (#8)
+
 ## 0.3.0 (2026-05-29)
 
 ### Feat

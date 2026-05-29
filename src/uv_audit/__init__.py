@@ -6,7 +6,7 @@ invoke as ``uv-audit``, plus small private helpers used exclusively by that
 command.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 import json
 import sys
