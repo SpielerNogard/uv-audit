@@ -260,22 +260,6 @@ jobs:
             PYSEC-2026-161
 ```
 
-### Monorepo (parallel scanning across files)
-
-```yaml
-name: audit
-on: [pull_request]
-permissions:
-  contents: read
-  pull-requests: write
-jobs:
-  audit:
-    uses: SpielerNogard/uv-audit/.github/workflows/scan.yml@0.2.0
-    with:
-      ignore_vulns: |
-        PYSEC-2026-161
-```
-
 ### Inputs
 
 | Input | Default | Description |
