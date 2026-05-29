@@ -42,7 +42,8 @@ on:
         type: boolean
         default: true
     secrets:
-      github_token:
+      gh_token:
+        description: "Optional override token for the PR comment API; defaults to the inherited github.token."
         required: false
 
 jobs:
@@ -112,7 +113,7 @@ jobs:
           repo_root: ${{ github.workspace }}
           ignore_vulns: ${{ inputs.ignore_vulns }}
           comment_on_pr: ${{ inputs.comment_on_pr }}
-          github_token: ${{ secrets.github_token || github.token }}
+          github_token: ${{ secrets.gh_token || github.token }}
           uv_audit_version: ${{ inputs.uv_audit_version }}
           uv_audit_source: ${{ inputs.uv_audit_source }}
       - name: Fail when vulnerabilities present
