@@ -235,6 +235,20 @@ def cmd(
 
     if discover:
         root = Path(project) if project else Path(".")
+        if not root.exists():
+            msg = f"Error: {root} does not exist."
+            if json_output:
+                print(msg, file=sys.stderr)
+            else:
+                rprint(f"[red]{msg}[/red]")
+            raise typer.Exit(code=1)
+        if not root.is_dir():
+            msg = f"Error: {root} is not a directory."
+            if json_output:
+                print(msg, file=sys.stderr)
+            else:
+                rprint(f"[red]{msg}[/red]")
+            raise typer.Exit(code=1)
         files = discover_files(
             root=root,
             includes=include or DEFAULT_INCLUDES,

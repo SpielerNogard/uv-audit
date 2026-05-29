@@ -31,19 +31,21 @@ def _load_per_file(artifacts_dir: Path) -> list[dict]:
         try:
             payloads.append(json.loads(scan_file.read_text()))
         except json.JSONDecodeError as exc:
-            print(
-                f"::error::Could not parse {scan_file}: {exc}", file=sys.stderr
+            print(f"::error::Could not parse {scan_file}: {exc}", file=sys.stderr)
+            payloads.append(
+                {
+                    "vulnerable": False,
+                    "inputs": [
+                        {
+                            "source": str(scan_file),
+                            "kind": "unknown",
+                            "groups": [],
+                            "extras": [],
+                            "error": f"could not parse scan.json: {exc}",
+                        }
+                    ],
+                }
             )
-            payloads.append({
-                "vulnerable": False,
-                "inputs": [{
-                    "source": str(scan_file),
-                    "kind": "unknown",
-                    "groups": [],
-                    "extras": [],
-                    "error": f"could not parse scan.json: {exc}",
-                }],
-            })
     return payloads
 
 
