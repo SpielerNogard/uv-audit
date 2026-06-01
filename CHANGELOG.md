@@ -1,3 +1,9 @@
+## 0.3.2 (2026-06-01)
+
+### Fix
+
+- **action**: inline discover and report into root action (#9)
+
 ## 0.3.1 (2026-05-29)
 
 ### Fix
