@@ -1,4 +1,4 @@
-# .github/actions/report/report.py
+# scripts/report.py
 """Aggregate per-file scan JSONs, write step summary, emit outputs.
 
 Reads every ``scan.json`` under the artifacts directory passed via
