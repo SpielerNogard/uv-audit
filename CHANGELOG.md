@@ -1,3 +1,9 @@
+## 0.3.3 (2026-06-05)
+
+### Fix
+
+- **env**: resolve pyproject deps via `uv pip compile` to skip wheel build (#10)
+
 ## 0.3.2 (2026-06-01)
 
 ### Fix

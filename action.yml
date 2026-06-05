@@ -43,7 +43,7 @@ inputs:
   uv_audit_version:
     description: Version of uv-audit2 to install from PyPI (kept in sync via commitizen)
     required: false
-    default: "0.3.2"  # x-cz-version
+    default: "0.3.3"  # x-cz-version
   uv_audit_source:
     description: "Optional installable source for uv-audit (path or VCS URL); when set, overrides uv_audit_version"
     required: false
