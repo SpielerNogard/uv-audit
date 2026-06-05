@@ -1,10 +1,11 @@
-"""High-level orchestration of the install-then-scan pipeline.
+"""High-level orchestration of the dependency scan pipeline.
 
 This module provides the two public entry points used by the CLI: one for
-plain ``requirements.txt`` files (:func:`handle_file`) and one for resolved
-``pyproject.toml`` selections (:func:`handle_pyproject`).  Both functions
-create an ephemeral virtual environment, install dependencies, run the
-vulnerability scan, print a report, and return the vulnerability records.
+plain ``requirements.txt`` files (:func:`handle_file`), which installs into
+an ephemeral venv and lists the result, and one for resolved
+``pyproject.toml`` selections (:func:`handle_pyproject`), which resolves the
+dependency tree with ``uv pip compile`` without building the project itself.
+Both run the vulnerability scan, print a report, and return the records.
 """
 
 from pathlib import Path
@@ -104,9 +105,9 @@ def handle_file(
 def handle_pyproject(selection: PyProjectSelection, quiet: bool = False) -> list[dict]:
     """Audit a resolved ``pyproject.toml`` selection for known vulnerabilities.
 
-    Creates a temporary virtual environment, installs the dependencies
-    described by *selection* (skipping installation when there is nothing to
-    install), queries the PyPI vulnerability database, and prints a summary.
+    Resolves the dependencies described by *selection* with ``uv pip compile``
+    (without building the project itself), queries the PyPI vulnerability
+    database, and prints a summary.
 
     Parameters
     ----------
@@ -123,15 +124,11 @@ def handle_pyproject(selection: PyProjectSelection, quiet: bool = False) -> list
         Empty when no vulnerabilities are found or no installable dependencies
         exist.
     """
-    env_handler = EnvironmentHandler()
-    env_handler.create_venv()
-
-    should_install = selection.has_main_deps or selection.extras or selection.groups
-    if should_install:
-        env_handler.install_pyproject(selection)
-
-    requirements = env_handler.list_packages()
-    env_handler.delete_venv()
+    has_selection = selection.has_main_deps or selection.extras or selection.groups
+    if has_selection:
+        requirements = EnvironmentHandler().compile_pyproject(selection)
+    else:
+        requirements = []
 
     if not requirements:
         if not quiet:

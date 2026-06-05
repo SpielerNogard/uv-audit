@@ -1,4 +1,4 @@
-"""Tests for the handle_pyproject orchestration function, including skip-install and extras-only cases."""
+"""Tests for the handle_pyproject orchestration function, including skip-compile and extras-only cases."""
 
 from pathlib import Path
 
@@ -10,7 +10,7 @@ from uv_audit.pyproject_handler import PyProjectSelection
 
 
 def test_handle_pyproject_runs_full_flow(mocker: MockerFixture, tmp_path: Path):
-    """Verify handle_pyproject creates a venv, installs the project, scans, and cleans up."""
+    """Verify handle_pyproject compiles the selection and scans the resolved requirements."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\ndependencies=[]\n")
@@ -23,7 +23,7 @@ def test_handle_pyproject_runs_full_flow(mocker: MockerFixture, tmp_path: Path):
 
     env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
     env = env_cls.return_value
-    env.list_packages.return_value = ["requests==2.32.3"]
+    env.compile_pyproject.return_value = ["requests==2.32.3"]
 
     scanner_cls = mocker.patch("uv_audit.file_handler.VulnerabilityScanner")
     scanner_cls.return_value.run_check.return_value = []
@@ -32,17 +32,21 @@ def test_handle_pyproject_runs_full_flow(mocker: MockerFixture, tmp_path: Path):
     vulns = handle_pyproject(selection)
 
     # assert
-    env.create_venv.assert_called_once()
-    env.install_pyproject.assert_called_once_with(selection)
-    env.list_packages.assert_called_once()
-    env.delete_venv.assert_called_once()
+    env.compile_pyproject.assert_called_once_with(selection)
+    env.create_venv.assert_not_called()
+    env.install_requirements.assert_not_called()
+    env.list_packages.assert_not_called()
+    env.delete_venv.assert_not_called()
+    scanner_cls.return_value.run_check.assert_called_once_with(
+        requirements=["requests==2.32.3"]
+    )
     assert vulns == []
 
 
-def test_handle_pyproject_skips_install_when_nothing_selected(
+def test_handle_pyproject_skips_compile_when_nothing_selected(
     mocker: MockerFixture, tmp_path: Path
 ):
-    """Verify that handle_pyproject does not call install_pyproject when has_main_deps is False and no extras or groups are selected."""
+    """Verify that handle_pyproject does not invoke compile when has_main_deps is False and no extras or groups are selected."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\n")
@@ -55,20 +59,19 @@ def test_handle_pyproject_skips_install_when_nothing_selected(
 
     env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
     env = env_cls.return_value
-    env.list_packages.return_value = []
 
     # act
     vulns = handle_pyproject(selection)
 
     # assert
-    env.install_pyproject.assert_not_called()
+    env.compile_pyproject.assert_not_called()
     assert vulns == []
 
 
-def test_handle_pyproject_installs_when_extras_only(
+def test_handle_pyproject_compiles_when_extras_only(
     mocker: MockerFixture, tmp_path: Path
 ):
-    """Verify that handle_pyproject calls install_pyproject when extras are selected even without main deps."""
+    """Verify that handle_pyproject calls compile_pyproject when extras are selected even without main deps."""
     # arrange
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[project]\nname='x'\nversion='0.0.0'\n")
@@ -81,13 +84,13 @@ def test_handle_pyproject_installs_when_extras_only(
 
     env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
     env = env_cls.return_value
-    env.list_packages.return_value = []
+    env.compile_pyproject.return_value = []
 
     # act
     handle_pyproject(selection)
 
     # assert
-    env.install_pyproject.assert_called_once_with(selection)
+    env.compile_pyproject.assert_called_once_with(selection)
 
 
 def test_handle_pyproject_quiet_suppresses_output(
@@ -106,7 +109,7 @@ def test_handle_pyproject_quiet_suppresses_output(
 
     env_cls = mocker.patch("uv_audit.file_handler.EnvironmentHandler")
     env = env_cls.return_value
-    env.list_packages.return_value = ["flask==1.1.2"]
+    env.compile_pyproject.return_value = ["flask==1.1.2"]
 
     scanner_cls = mocker.patch("uv_audit.file_handler.VulnerabilityScanner")
     scanner_cls.return_value.run_check.return_value = [
