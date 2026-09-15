@@ -1,3 +1,9 @@
+## 0.4.1 (2026-09-15)
+
+### Fix
+
+- **action**: run report via installed uv-audit tool env (#13)
+
 ## 0.4.0 (2026-09-15)
 
 ### Feat
