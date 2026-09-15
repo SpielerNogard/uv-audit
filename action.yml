@@ -16,6 +16,7 @@ inputs:
     default: |
       **/pyproject.toml
       **/requirements*.txt
+      **/uv.lock
   exclude:
     description: Newline-separated path components or globs to skip
     required: false

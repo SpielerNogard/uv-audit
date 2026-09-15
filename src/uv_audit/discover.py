@@ -2,14 +2,15 @@
 
 Walks a directory tree looking for files that match include-globs and
 do not match any exclude entry. Returns a sorted list of {path, kind}
-dicts where ``kind`` is ``"pyproject"`` for ``pyproject.toml`` and
-``"requirements"`` for any other matching file.
+dicts where ``kind`` is ``"pyproject"`` for ``pyproject.toml``,
+``"lock"`` for ``uv.lock``, and ``"requirements"`` for any other
+matching file.
 """
 
 import fnmatch
 from pathlib import Path
 
-DEFAULT_INCLUDES = ["**/pyproject.toml", "**/requirements*.txt"]
+DEFAULT_INCLUDES = ["**/pyproject.toml", "**/requirements*.txt", "**/uv.lock"]
 DEFAULT_EXCLUDES = [
     ".venv",
     "venv",
@@ -22,8 +23,31 @@ DEFAULT_EXCLUDES = [
 ]
 
 
-def _kind(path: Path) -> str:
-    return "pyproject" if path.name == "pyproject.toml" else "requirements"
+KINDS_BY_FILENAME = {"pyproject.toml": "pyproject", "uv.lock": "lock"}
+
+
+def kind_for_path(path: Path) -> str:
+    """Return the input kind of *path* based on its filename.
+
+    Parameters
+    ----------
+    path : Path
+        File path to classify.
+
+    Returns
+    -------
+    str
+        ``"pyproject"``, ``"lock"``, or ``"requirements"``.
+
+    Examples
+    --------
+    >>> from pathlib import Path
+    >>> kind_for_path(Path("/p/uv.lock"))
+    'lock'
+    >>> kind_for_path(Path("/p/requirements-dev.txt"))
+    'requirements'
+    """
+    return KINDS_BY_FILENAME.get(path.name, "requirements")
 
 
 def _has_glob_metachars(s: str) -> bool:
@@ -66,5 +90,5 @@ def discover_files(root: Path, includes: list[str], excludes: list[str]) -> list
         rel = hit.relative_to(root).as_posix()
         if _is_excluded(rel, excludes):
             continue
-        results.append({"path": rel, "kind": _kind(hit)})
+        results.append({"path": rel, "kind": kind_for_path(hit)})
     return results

@@ -3,15 +3,153 @@
 This module creates a throw-away ``uv`` virtual environment under ``/tmp``,
 installs the requested dependencies into it, lists the installed packages in
 ``package==version`` format, and deletes the environment afterwards.
+
+It also wraps ``uv audit``, which audits a ``uv.lock`` natively and needs no
+environment at all.
 """
 
+import json
 import os
 import shlex
 import shutil
 import subprocess
 import uuid
+from pathlib import Path
 
 from uv_audit.pyproject_handler import PyProjectSelection
+
+AUDIT_EXIT_CODES = (0, 1)
+"""``uv audit`` exit codes that carry a report: 0 is clean, 1 means findings."""
+
+
+class LockAuditError(RuntimeError):
+    """Raised when ``uv audit`` fails or emits output we cannot read."""
+
+
+def _to_record(vulnerability: dict) -> dict:
+    """Convert one ``uv audit`` finding into a uv-audit vulnerability record.
+
+    Parameters
+    ----------
+    vulnerability : dict
+        A single entry from the ``vulnerabilities`` array of ``uv audit
+        --output-format json``.
+
+    Returns
+    -------
+    dict
+        Record with the keys ``"Name"``, ``"Version"``, ``"ID"``,
+        ``"Fix Versions"``, ``"Link"``, and ``"Aliases"``.
+
+    Examples
+    --------
+    >>> record = _to_record(
+    ...     {
+    ...         "dependency": {"name": "flask", "version": "1.1.2"},
+    ...         "display_id": "GHSA-1",
+    ...         "aliases": ["CVE-2023-30861"],
+    ...         "fix_versions": ["2.2.5"],
+    ...     }
+    ... )
+    >>> record["Name"], record["ID"], record["Fix Versions"], record["Link"]
+    ('flask', 'GHSA-1', '2.2.5', 'N/A')
+    """
+    dependency = vulnerability["dependency"]
+    return {
+        "Name": dependency["name"],
+        "Version": dependency["version"],
+        "ID": vulnerability["display_id"],
+        "Fix Versions": ", ".join(vulnerability.get("fix_versions") or ["N/A"]),
+        "Link": vulnerability.get("link") or "N/A",
+        "Aliases": vulnerability.get("aliases", []),
+    }
+
+
+def _deduplicate(records: list[dict]) -> list[dict]:
+    """Drop records that repeat an advisory already seen for the same package.
+
+    ``uv audit`` lists an advisory once per identifier it is known by, so the
+    same finding arrives as both ``GHSA-…`` and ``PYSEC-…``.  The first record
+    of each group wins; the dropped identifiers survive in its ``"Aliases"``.
+
+    Parameters
+    ----------
+    records : list[dict]
+        Vulnerability records in the order ``uv audit`` reported them.
+
+    Returns
+    -------
+    list[dict]
+        The records with alias duplicates removed, order preserved.
+
+    Examples
+    --------
+    >>> ghsa = {"Name": "flask", "ID": "GHSA-1", "Aliases": ["PYSEC-2"]}
+    >>> pysec = {"Name": "flask", "ID": "PYSEC-2", "Aliases": ["GHSA-1"]}
+    >>> [record["ID"] for record in _deduplicate([ghsa, pysec])]
+    ['GHSA-1']
+    """
+    seen: set[tuple[str, str]] = set()
+    unique = []
+    for record in records:
+        identifiers = {(record["Name"], i) for i in (record["ID"], *record["Aliases"])}
+        if identifiers & seen:
+            continue
+        seen |= identifiers
+        unique.append(record)
+    return unique
+
+
+def audit_lock(lock_path: str | Path) -> list[dict]:
+    """Audit a ``uv.lock`` with ``uv audit`` and return vulnerability records.
+
+    Runs ``uv audit --frozen`` in the lock file's directory, so the lockfile is
+    read as-is and never re-resolved. The ``--group``/``--extra`` selection
+    flags are not forwarded: ``uv audit`` offers no include-style equivalents,
+    and auditing its default selection (main dependencies, default groups, all
+    extras) is the closest honest match.
+
+    Parameters
+    ----------
+    lock_path : str or Path
+        Path to the ``uv.lock`` file to audit.
+
+    Returns
+    -------
+    list[dict]
+        One record per finding (see :func:`_to_record`). Advisories that
+        ``uv audit`` reports under several identifiers are collapsed into a
+        single record (see :func:`_deduplicate`). Empty when the project is
+        clean.
+
+    Raises
+    ------
+    LockAuditError
+        When ``uv audit`` exits with anything other than 0 or 1, or when its
+        output cannot be read. The JSON schema is marked ``preview`` upstream,
+        so shape changes surface here as a readable error.
+    """
+    directory = Path(lock_path).parent
+    command = (
+        f"uv audit --frozen --output-format json "
+        f"--directory {shlex.quote(str(directory))}"
+    )
+    completed = subprocess.run(
+        command, shell=True, capture_output=True, text=True, check=False
+    )
+    if completed.returncode not in AUDIT_EXIT_CODES:
+        detail = (
+            completed.stderr.strip() or f"uv audit exited with {completed.returncode}"
+        )
+        raise LockAuditError(detail)
+
+    try:
+        payload = json.loads(completed.stdout)
+        records = [_to_record(v) for v in payload["vulnerabilities"]]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise LockAuditError(f"unexpected `uv audit` output: {exc}") from exc
+
+    return _deduplicate(records)
 
 
 def parse_pip_list_to_requirements(pip_list_output):

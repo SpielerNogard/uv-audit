@@ -3,6 +3,10 @@
 The aggregated shape adds top-level counters, marks each vulnerability with
 an ``ignored`` flag based on a caller-supplied list of vulnerability IDs,
 and relativises absolute file paths against a repo-root.
+
+An ignore entry matches a vulnerability's own ID or any of its aliases, so
+the same advisory can be suppressed once no matter whether a scan reports it
+under its GHSA, CVE, or PYSEC identifier.
 """
 
 from pathlib import Path
@@ -19,6 +23,7 @@ def aggregate(per_file: list[dict], ignore_vulns: list[str], repo_root: str) -> 
     ignore_vulns : list[str]
         Vulnerability IDs that should be marked ``ignored: true`` and
         excluded from the ``vuln_count`` (but included in ``ignored_count``).
+        An entry matches a vulnerability's ``id`` or any of its ``aliases``.
     repo_root : str
         Absolute path used to relativise the ``source`` field on each input.
 
@@ -45,10 +50,11 @@ def aggregate(per_file: list[dict], ignore_vulns: list[str], repo_root: str) -> 
 
             vulns_out = []
             for v in entry.get("vulnerabilities", []):
-                ignored = v["id"] in ignore_set
+                matched = ignore_set & {v["id"], *v.get("aliases", [])}
+                ignored = bool(matched)
                 if ignored:
                     ignored_count += 1
-                    seen_ignored.add(v["id"])
+                    seen_ignored.update(matched)
                 else:
                     vuln_count += 1
                 vulns_out.append({**v, "ignored": ignored})

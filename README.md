@@ -148,6 +148,11 @@ Audit a pyproject.toml (main dependencies only):
 uv-audit -r pyproject.toml
 ```
 
+Audit a uv.lock (delegated to `uv audit`):
+```
+uv-audit -r uv.lock
+```
+
 Include specific dependency groups and/or extras:
 ```
 uv-audit -r pyproject.toml --group dev --extra cli
@@ -167,6 +172,31 @@ Mix files in one run:
 ```
 uv-audit -r requirements.txt -r ./svc/pyproject.toml --all-groups
 ```
+
+### uv.lock inputs
+
+`uv.lock` files are handed to `uv audit --frozen`, which reads the lockfile
+as-is and queries its own vulnerability service (OSV). No virtual environment
+is created and no PyPI lookups happen, so these scans are the fastest of the
+three.
+
+Three consequences:
+
+* `uv audit` has no include-style selection flags, so `--group`, `--extra`,
+  `--all-groups`, and `--all-extras` do **not** apply to `uv.lock` inputs (a
+  warning is printed). It audits main dependencies, the default groups, and
+  all extras.
+* `uv audit` lists an advisory once per identifier it is known by, so the
+  same finding arrives as both `GHSA-…` and `PYSEC-…`. uv-audit collapses
+  those into one row per advisory and keeps the dropped identifiers in
+  `aliases`.
+* Findings come from a different advisory source than the
+  `requirements.txt`/`pyproject.toml` path, so IDs and counts for the same
+  project can differ between input kinds. Each finding carries its `aliases`
+  so an ignore entry written as `PYSEC-…` still suppresses the advisory uv
+  reports as `GHSA-…`.
+
+`uv audit` requires uv 0.12 or newer.
 
 ## Machine-readable output
 
@@ -204,14 +234,31 @@ Example output:
       "groups": [],
       "extras": [],
       "vulnerabilities": []
+    },
+    {
+      "source": "/abs/path/to/uv.lock",
+      "kind": "lock",
+      "groups": [],
+      "extras": [],
+      "vulnerabilities": [
+        {
+          "package": "flask",
+          "version": "1.1.2",
+          "id": "GHSA-m2qf-hxjv-5gpq",
+          "fix_versions": ["2.2.5"],
+          "link": "https://example.com",
+          "aliases": ["CVE-2023-30861", "PYSEC-2023-62"]
+        }
+      ]
     }
   ]
 }
 ```
 
-For requirements files the `groups` and `extras` arrays are always empty so
-the shape is identical across input kinds. Exit code is non-zero when any
-vulnerability is found.
+For `requirements.txt` and `uv.lock` files the `groups` and `extras` arrays
+are always empty so the shape is identical across input kinds. The `aliases`
+array is populated for `uv.lock` findings and empty otherwise. Exit code is
+non-zero when any vulnerability is found.
 
 Quick recipes with `jq`:
 ```
@@ -237,7 +284,7 @@ uv tool run uv-audit -r requirements.txt
 ## GitHub Action
 
 `uv-audit` is also packaged as a reusable GitHub Action. The action discovers
-`pyproject.toml` and `requirements*.txt` files in your repo, scans each for
+`pyproject.toml`, `requirements*.txt`, and `uv.lock` files in your repo, scans each for
 known vulnerabilities, posts a sticky comment on the PR with findings, and
 fails the build (configurable) when non-ignored vulnerabilities are present.
 
@@ -265,7 +312,7 @@ jobs:
 | Input | Default | Description |
 |---|---|---|
 | `path` | `.` | Root directory for discovery |
-| `include` | `**/pyproject.toml`, `**/requirements*.txt` | Newline-separated glob patterns |
+| `include` | `**/pyproject.toml`, `**/requirements*.txt`, `**/uv.lock` | Newline-separated glob patterns |
 | `exclude` | `.venv`, `venv`, `.tox`, `node_modules`, `.git`, `dist`, `build`, `site-packages` | Path components or globs to skip |
 | `ignore_vulns` | _(empty)_ | Vulnerability IDs to suppress |
 | `fail_on_vuln` | `true` | Exit non-zero when non-ignored vulns are found |

@@ -16,8 +16,14 @@ from typing import Annotated
 import typer
 from rich import print as rprint
 
-from .discover import DEFAULT_EXCLUDES, DEFAULT_INCLUDES, discover_files
-from .file_handler import handle_file, handle_pyproject
+from .discover import (
+    DEFAULT_EXCLUDES,
+    DEFAULT_INCLUDES,
+    discover_files,
+    kind_for_path,
+)
+from .environment_handler import LockAuditError
+from .file_handler import handle_file, handle_lock, handle_pyproject
 from .pyproject_handler import (
     PyProjectSelection,
     UnknownExtraError,
@@ -31,33 +37,9 @@ app = typer.Typer(
 )
 
 
-def _is_pyproject(path: Path) -> bool:
-    """Return True if *path* points to a ``pyproject.toml`` file.
-
-    Parameters
-    ----------
-    path : Path
-        File path to inspect.
-
-    Returns
-    -------
-    bool
-        ``True`` when the file is named ``pyproject.toml``, ``False`` otherwise.
-
-    Examples
-    --------
-    >>> from pathlib import Path
-    >>> _is_pyproject(Path("/some/project/pyproject.toml"))
-    True
-    >>> _is_pyproject(Path("/some/project/requirements.txt"))
-    False
-    """
-    return path.name == "pyproject.toml"
-
-
 def _warn_selection_flags(
     selection_flags_set: bool,
-    has_requirements: bool,
+    has_flagless_inputs: bool,
     has_pyproject: bool,
     quiet: bool = False,
 ) -> None:
@@ -72,19 +54,20 @@ def _warn_selection_flags(
     selection_flags_set : bool
         Whether any of the selection flags (``--group``, ``--extra``,
         ``--all-groups``, ``--all-extras``) were provided by the user.
-    has_requirements : bool
-        Whether at least one plain ``requirements.txt`` input is present.
+    has_flagless_inputs : bool
+        Whether at least one input the flags do not apply to is present —
+        a plain ``requirements.txt`` or a ``uv.lock``.
     has_pyproject : bool
         Whether at least one ``pyproject.toml`` input is present.
     quiet : bool, optional
         When ``True``, suppress all output.  Default is ``False``.
     """
-    if not selection_flags_set or not has_requirements or quiet:
+    if not selection_flags_set or not has_flagless_inputs or quiet:
         return
     if not has_pyproject:
         rprint(
             "[yellow]Warning: --group/--extra/--all-* flags are ignored for "
-            "requirements.txt files.[/yellow]"
+            "requirements.txt and uv.lock files.[/yellow]"
         )
     else:
         rprint(
@@ -170,7 +153,7 @@ def cmd(
         typer.Option(
             "-r",
             "--requirement",
-            help="requirements.txt or pyproject.toml to audit (repeatable)",
+            help="requirements.txt, pyproject.toml or uv.lock to audit (repeatable)",
         ),
     ] = None,
     groups: Annotated[
@@ -217,17 +200,18 @@ def cmd(
 ):
     """Audit Python dependencies for known vulnerabilities.
 
-    Accepts one or more ``requirements.txt`` or ``pyproject.toml`` files (via
-    ``-r``/``--requirement``), or a project directory shortcut as a positional
-    argument.  For each input it creates a temporary virtual environment,
-    installs the resolved dependencies, queries the PyPI vulnerability database
-    in parallel, prints a table of findings, and exits with a non-zero status
-    when any vulnerability is found.
+    Accepts one or more ``requirements.txt``, ``pyproject.toml``, or
+    ``uv.lock`` files (via ``-r``/``--requirement``), or a project directory
+    shortcut as a positional argument.  ``requirements.txt`` and
+    ``pyproject.toml`` inputs are resolved and checked against the PyPI
+    vulnerability database; ``uv.lock`` files are handed to ``uv audit``.
+    Findings are printed as a table and the command exits non-zero when any
+    vulnerability is found.
 
     The ``--group``, ``--extra``, ``--all-groups``, and ``--all-extras`` flags
     control which optional dependencies are included when auditing a
-    ``pyproject.toml``.  They are silently ignored for plain
-    ``requirements.txt`` inputs (a warning is printed in that case).
+    ``pyproject.toml``.  They are silently ignored for ``requirements.txt``
+    and ``uv.lock`` inputs (a warning is printed in that case).
     """
     if version:
         rprint(f"[bold]uv-audit {__version__}[/bold]")
@@ -281,15 +265,15 @@ def cmd(
     inputs: list[tuple[Path, str]] = []
     if project:
         inputs.append((Path(project) / "pyproject.toml", "pyproject"))
-    for file_path in requirements_files:
-        kind = "pyproject" if _is_pyproject(file_path) else "requirements"
-        inputs.append((file_path, kind))
+    inputs.extend(
+        (file_path, kind_for_path(file_path)) for file_path in requirements_files
+    )
 
     has_pyproject = any(kind == "pyproject" for _, kind in inputs)
-    has_requirements = any(kind == "requirements" for _, kind in inputs)
+    has_flagless_inputs = any(kind != "pyproject" for _, kind in inputs)
     selection_flags_set = bool(groups or extras or all_groups or all_extras)
     _warn_selection_flags(
-        selection_flags_set, has_requirements, has_pyproject, quiet=json_output
+        selection_flags_set, has_flagless_inputs, has_pyproject, quiet=json_output
     )
 
     all_vulns: list[dict] = []
@@ -309,20 +293,26 @@ def cmd(
                 rprint(f"[red]Error: {path} is not a file.[/red]")
             continue
 
+        resolved_groups: list[str] = []
+        resolved_extras: list[str] = []
         if kind == "pyproject":
             vulns, selection = _process_pyproject(
                 path, extras, groups, all_extras, all_groups, quiet=json_output
             )
-            if json_output:
-                resolved_groups = selection.groups if selection else []
-                resolved_extras = selection.extras if selection else []
-            else:
-                resolved_groups = []
-                resolved_extras = []
+            if json_output and selection:
+                resolved_groups = selection.groups
+                resolved_extras = selection.extras
+        elif kind == "lock":
+            try:
+                vulns = handle_lock(path, quiet=json_output)
+            except LockAuditError as exc:
+                if json_output:
+                    print(f"Error: {path}: {exc}", file=sys.stderr)
+                else:
+                    rprint(f"[red]Error: {path}: {exc}[/red]")
+                continue
         else:
             vulns = handle_file(file_path=path, is_file=True, quiet=json_output)
-            resolved_groups = []
-            resolved_extras = []
 
         all_vulns.extend(vulns)
 
@@ -344,6 +334,7 @@ def cmd(
                                 if s.strip()
                             ],
                             "link": v["Link"],
+                            "aliases": v.get("Aliases", []),
                         }
                         for v in vulns
                     ],
