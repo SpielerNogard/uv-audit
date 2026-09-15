@@ -6,16 +6,44 @@ an ephemeral venv and lists the result, and one for resolved
 ``pyproject.toml`` selections (:func:`handle_pyproject`), which resolves the
 dependency tree with ``uv pip compile`` without building the project itself.
 Both run the vulnerability scan, print a report, and return the records.
+
+A third entry point, :func:`handle_lock`, hands ``uv.lock`` files to ``uv
+audit``, which resolves and audits them natively.
 """
 
 from pathlib import Path
 
 from rich import print as rprint
 
-from uv_audit.environment_handler import EnvironmentHandler
+from uv_audit.environment_handler import EnvironmentHandler, audit_lock
 from uv_audit.pyproject_handler import PyProjectSelection
 from uv_audit.table_view import print_simple_table
 from uv_audit.vulnerability_scanner import VulnerabilityScanner
+
+VULN_HEADERS = ["Name", "Version", "ID", "Fix Versions", "Link"]
+"""Columns rendered in the terminal table; extra record keys stay hidden."""
+
+
+def _print_vulns(vulns: list[dict], quiet: bool = False) -> None:
+    """Print a summary table of *vulns*, or a clean-result message.
+
+    Parameters
+    ----------
+    vulns : list[dict]
+        Vulnerability records to display.
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
+    """
+    if quiet:
+        return
+    if vulns:
+        package_count = len({v["Name"] for v in vulns})
+        rprint(
+            f"[red]Found {len(vulns)} known vulnerabilities in {package_count} packages"
+        )
+        print_simple_table(vulns, headers=VULN_HEADERS)
+    else:
+        rprint("[green]No known vulnerabilities found")
 
 
 def _report_vulns(results: list[dict], quiet: bool = False) -> list[dict]:
@@ -54,16 +82,7 @@ def _report_vulns(results: list[dict], quiet: bool = False) -> list[dict]:
         for r in results
         for v in r["vulnerabilities"]
     ]
-    if not quiet:
-        if vulns:
-            package_count = len({v["Name"] for v in vulns})
-            rprint(
-                f"[red]Found {len(vulns)} known vulnerabilities "
-                f"in {package_count} packages"
-            )
-            print_simple_table(vulns)
-        else:
-            rprint("[green]No known vulnerabilities found")
+    _print_vulns(vulns, quiet=quiet)
     return vulns
 
 
@@ -138,3 +157,35 @@ def handle_pyproject(selection: PyProjectSelection, quiet: bool = False) -> list
     results = VulnerabilityScanner().run_check(requirements=requirements)
 
     return _report_vulns(results, quiet=quiet)
+
+
+def handle_lock(lock_path: str | Path, quiet: bool = False) -> list[dict]:
+    """Audit a ``uv.lock`` file for known vulnerabilities via ``uv audit``.
+
+    Unlike the other entry points this creates no environment and performs no
+    PyPI lookups — ``uv audit`` reads the lockfile and queries its own
+    vulnerability service.  The ``--group``/``--extra`` selection flags do not
+    apply; see :func:`~uv_audit.environment_handler.audit_lock`.
+
+    Parameters
+    ----------
+    lock_path : str or Path
+        Path to the ``uv.lock`` file to audit.
+    quiet : bool, optional
+        When ``True``, suppress all output.  Default is ``False``.
+
+    Returns
+    -------
+    list[dict]
+        Flat list of vulnerability records (see :func:`_report_vulns`), each
+        additionally carrying an ``"Aliases"`` key.  Empty when no
+        vulnerabilities are found.
+
+    Raises
+    ------
+    ~uv_audit.environment_handler.LockAuditError
+        When ``uv audit`` fails or emits output that cannot be read.
+    """
+    vulns = audit_lock(lock_path)
+    _print_vulns(vulns, quiet=quiet)
+    return vulns
