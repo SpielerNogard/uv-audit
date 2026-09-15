@@ -95,6 +95,9 @@ runs:
         else
           uv tool install "uv-audit2==$UV_AUDIT_VERSION"
         fi
+        # The entry point's shebang is the tool env interpreter; the report
+        # step reuses it instead of re-resolving the package via `uv run --with`.
+        echo "UV_AUDIT_PYTHON=$(sed -n '1s/^#!//p' "$(command -v uv-audit)")" >> "$GITHUB_ENV"
     - id: discover
       shell: bash
       env:
@@ -175,20 +178,12 @@ runs:
       shell: bash
       env:
         IGNORE_VULNS: ${{ inputs.ignore_vulns }}
-        UV_AUDIT_SOURCE: ${{ inputs.uv_audit_source }}
-        UV_AUDIT_VERSION: ${{ inputs.uv_audit_version }}
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        if [ -n "$UV_AUDIT_SOURCE" ]; then
-          with_spec="$UV_AUDIT_SOURCE"
-        else
-          with_spec="uv-audit2==$UV_AUDIT_VERSION"
-        fi
-        uv run --with "$with_spec" \
-          python "$ACTION_PATH/scripts/report.py" \
-            --artifacts-dir artifacts \
-            --repo-root "$GITHUB_WORKSPACE" \
-            --ignore-vulns "$IGNORE_VULNS"
+        "$UV_AUDIT_PYTHON" "$ACTION_PATH/scripts/report.py" \
+          --artifacts-dir artifacts \
+          --repo-root "$GITHUB_WORKSPACE" \
+          --ignore-vulns "$IGNORE_VULNS"
     - name: Post or update sticky PR comment
       if: ${{ inputs.comment_on_pr == 'true' && github.event.pull_request != null }}
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
