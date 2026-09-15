@@ -95,9 +95,6 @@ runs:
         else
           uv tool install "uv-audit2==$UV_AUDIT_VERSION"
         fi
-        # The entry point's shebang is the tool env interpreter; the report
-        # step reuses it instead of re-resolving the package via `uv run --with`.
-        echo "UV_AUDIT_PYTHON=$(sed -n '1s/^#!//p' "$(command -v uv-audit)")" >> "$GITHUB_ENV"
     - id: discover
       shell: bash
       env:
@@ -180,7 +177,11 @@ runs:
         IGNORE_VULNS: ${{ inputs.ignore_vulns }}
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        "$UV_AUDIT_PYTHON" "$ACTION_PATH/scripts/report.py" \
+        # The entry point's shebang is the interpreter of the tool environment
+        # created by the install step; reusing it keeps the report step from
+        # re-resolving the package via `uv run --with`.
+        uv_audit_python=$(sed -n '1s/^#!//p' "$(command -v uv-audit)")
+        "$uv_audit_python" "$ACTION_PATH/scripts/report.py" \
           --artifacts-dir artifacts \
           --repo-root "$GITHUB_WORKSPACE" \
           --ignore-vulns "$IGNORE_VULNS"
